@@ -1,0 +1,16 @@
+[project]
+name = "nba"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "matplotlib>=3.10.8",
+    "mplbasketball>=1.0.1",
+    "pandas>=2.3.3",
+    "pip>=25.3",
+    "seaborn>=0.13.2",
+    "sportsipy>=0.6.0",
+    "streamlit>=1.52.2",
+]
