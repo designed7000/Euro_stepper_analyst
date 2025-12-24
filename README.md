@@ -2,7 +2,7 @@
   <img src="images/logo.png" alt="NBA Player DNA Logo" width="120"/>
 </p>
 
-<h1 align="center">🏀 NBA Player DNA</h1>
+<h1 align="center">NBA Player DNA</h1>
 <h3 align="center">Spatial Efficiency Engine</h3>
 
 <p align="center">
@@ -28,29 +28,18 @@
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-installation">Installation</a> •
-  <a href="#-usage">Usage</a> •
-  <a href="#-methodology">Methodology</a> •
-  <a href="#-contributing">Contributing</a>
+  <a href="#features">Features</a> •
+  <a href="#installation">Installation</a> •
+  <a href="#usage">Usage</a> •
+  <a href="#methodology">Methodology</a> •
+  <a href="#contributing">Contributing</a>
 </p>
 
 ---
 
-## 📸 Screenshots
+## Features
 
-<p align="center">
-  <img src="images/mvp_ladder.png" alt="MVP Ladder" width="200"/>
-  <img src="images/league_leaders.png" alt="League Leaders" width="200"/>
-  <img src="images/player_analysis.png" alt="Player Analysis" width="200"/>
-  <img src="images/similar_players.png" alt="Similar Players" width="200"/>
-</p>
-
----
-
-## ✨ Features
-
-### 🏆 MVP Ladder - DNA Production Index
+### MVP Ladder - DNA Production Index
 A proprietary MVP ranking system using **scarcity-weighted statistics** combined with team success metrics.
 
 - Calculates scarcity weights based on league-wide rarity
@@ -58,7 +47,7 @@ A proprietary MVP ranking system using **scarcity-weighted statistics** combined
 - Multiplies production by √(win percentage) for team success
 - Configurable Top 5/10/20 rankings with visual breakdowns
 
-### 📊 League Leaders by Position
+### League Leaders by Position
 Analyze top performers across three dimensions:
 
 | Category | Metric | Description |
@@ -67,14 +56,14 @@ Analyze top performers across three dimensions:
 | **Playmaking** | AST/100 × AST:TO | Creation rate weighted by turnover ratio |
 | **Two-Way Impact** | Net Rating | Offensive rating minus defensive rating |
 
-### 🎯 Shot Chart Analysis
+### Shot Chart Analysis
 Interactive spatial efficiency visualizations:
 
 - **Scatter View**: Individual shots with color-coded efficiency
 - **Heatmap View**: Zone-aggregated hexagonal binning
 - **Clutch Filter**: Last 5 minutes, within 5 points
 
-### 🔄 Player Comparison Engine
+### Player Comparison Engine
 Side-by-side performance analysis:
 
 - Dual synchronized shot charts
@@ -82,7 +71,7 @@ Side-by-side performance analysis:
 - Radar chart profile overlays
 - Historical season trends (eFG%, GSAA)
 
-### 🔍 Statistical Doppelgangers
+### Statistical Doppelgangers
 ML-powered player similarity using **K-Nearest Neighbors**:
 
 - Analyzes 6 style dimensions (USG%, TS%, AST%, REB%, Pace, 3P Rate)
@@ -92,7 +81,7 @@ ML-powered player similarity using **K-Nearest Neighbors**:
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 - Python 3.10+
@@ -135,10 +124,10 @@ Launch the app and select any mode from the sidebar:
 
 | Mode | Checkbox | Description |
 |------|----------|-------------|
-| League Leaders | ☑️ Show Leaders by Position | Top performers by category |
-| MVP Ladder | ☑️ Show MVP Ladder | DNA Production Index rankings |
-| Player Analysis | ☑️ Analyze Player | Shot charts & metrics |
-| Doppelgangers | ☑️ Find Similar Players | ML similarity matching |
+| League Leaders | Show Leaders by Position | Top performers by category |
+| MVP Ladder | Show MVP Ladder | DNA Production Index rankings |
+| Player Analysis | Analyze Player | Shot charts & metrics |
+| Doppelgangers | Find Similar Players | ML similarity matching |
 
 ### Player Analysis Tips
 - **Fuzzy matching**: Handles typos (e.g., "Lebron" → "LeBron James")
@@ -148,7 +137,7 @@ Launch the app and select any mode from the sidebar:
 
 ---
 
-## 🧮 Methodology
+## Methodology
 
 ### DNA Production Index (MVP Score)
 
@@ -184,38 +173,38 @@ Weight = Total League Points / Total League Stat
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 Euro_stepper_analyst/
-├── 📱 app.py                 # Main Streamlit application
-├── ⚙️ config.py              # Configuration & constants
-├── 📋 requirements.txt       # Dependencies
+├── app.py                 # Main Streamlit application
+├── config.py              # Configuration & constants
+├── requirements.txt       # Dependencies
 │
-├── 📊 data/
+├── data/
 │   ├── api.py                # NBA API calls with caching
 │   └── processing.py         # Data transformations
 │
-├── 📈 charts/
+├── charts/
 │   ├── court.py              # Shot charts (scatter, hexbin)
 │   ├── comparisons.py        # Radar charts, zone breakdowns
 │   ├── similarity.py         # Doppelganger visualizations
 │   ├── trends.py             # Historical trends
 │   └── awards.py             # MVP ladder charts
 │
-├── 🧠 analysis/
+├── analysis/
 │   ├── similarity.py         # KNN player matching
 │   └── awards.py             # DNA Production Index
 │
-├── 🛠️ utils/
+├── utils/
 │   └── helpers.py            # Player matching, normalization
 │
-└── 🖼️ images/                # App icons & screenshots
+└── images/                # App icons & screenshots
 ```
 
 ---
 
-## 📦 Tech Stack
+## Tech Stack
 
 | Category | Technology |
 |----------|------------|
@@ -227,7 +216,7 @@ Euro_stepper_analyst/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -239,13 +228,13 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [nba_api](https://github.com/swar/nba_api) - NBA statistics API
 - [Streamlit](https://streamlit.io) - Web application framework
