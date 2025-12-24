@@ -1,67 +1,94 @@
-# NBA Shot DNA: Spatial Efficiency Engine
+# NBA Player DNA: Spatial Efficiency Engine
 
-A Streamlit-powered NBA analytics dashboard that visualizes player shooting patterns, compares performance metrics, and uses machine learning to find statistically similar players.
+A comprehensive NBA analytics platform built with Streamlit that provides advanced shooting analysis, player comparisons, MVP tracking, and machine learning-powered player similarity matching.
 
-## Features
+## Overview
 
-### League Leaders by Position
-- **Scoring Impact**: Top scorers ranked by USG% × TS% (usage load × efficiency)
-- **Playmaking**: Best facilitators ranked by AST/100 possessions weighted by AST/TO ratio
-- **Two-Way Impact**: Elite players ranked by Net Rating (Offense - Defense)
-- **Position Breakdown**: Guards, Forwards, and Centers displayed in separate columns
-- **Flexible Display**: Toggle between Top 5, Top 10, and Top 20 players per position
+NBA Player DNA is an interactive web application that transforms raw NBA statistics into actionable insights through spatial efficiency analysis, scarcity-weighted valuation, and comparative performance metrics. The platform combines shot-level data visualization with advanced analytics to help analysts, coaches, and fans understand player performance at a granular level.
 
-### Advanced Analytics Visualizations
-- **Scoring Load vs Efficiency**: Scatter plot of USG% vs TS% with league average reference line
-- **Playmaking Creation vs Security**: AST per 100 possessions vs TOV per 100 (inverted axis for elite zone in top-right)
-- **Two-Way Quadrant Chart**: Offensive Rating vs Defensive Rating with quadrant zones
-- **Top Scorers Bar Chart**: Horizontal bar chart of top 10 PPG leaders by position
+## Key Features
 
-### Shot Chart Visualization
-- **Relative Efficiency Maps**: Interactive shot charts showing each shot attempt colored by performance vs league average
-- **Heatmap View**: Aggregated zone-based visualization showing hot/cold shooting areas
-- **Toggle Between Views**: Switch between individual shot scatter plots and zone heatmaps
+### 1. League Leaders by Position
+Analyze top performers across three key dimensions:
+- **Scoring Impact**: Players ranked by usage load multiplied by efficiency (USG% × TS%)
+- **Playmaking**: Facilitators ranked by assists per 100 possessions, weighted by assist-to-turnover ratio
+- **Two-Way Impact**: Elite performers ranked by net rating (offensive rating minus defensive rating)
 
-### Player Comparison Mode
-- Side-by-side shot chart comparison
-- Head-to-head metrics table with delta analysis
-- Radar chart player profile overlay
-- Shot distribution comparison with accuracy metrics
-- Historical season trend analysis (eFG% and GSAA)
+Features:
+- Position-specific breakdowns (Guards, Forwards, Centers)
+- Configurable display options (Top 5, Top 10, Top 20)
+- Advanced visualization suite including scoring efficiency scatter plots, playmaking creation charts, and two-way quadrant analysis
 
-### Advanced Metrics
-- **Effective Field Goal Percentage (eFG%)**: Accounts for 3-point shot value
-- **Points Added (GSAA)**: Goals Saved Above Average - points generated above league expectation
-- **Relative Efficiency**: Per-shot performance compared to league average from same location
-- **Zone Breakdown**: Detailed FG% by court zone vs league benchmarks
+### 2. MVP Ladder - DNA Production Index
+A proprietary MVP ranking system using scarcity-weighted statistics combined with team success metrics.
 
-### Doppelganger Finder (ML-Powered Player Similarity)
-- Uses K-Nearest Neighbors algorithm to find players with similar playing styles
-- Features analyzed: Usage Rate, True Shooting %, Assist Rate, Rebound Rate, Pace, 3PT Attempt Rate
-- Normalized feature scaling for balanced comparison
-- Radar chart visualization comparing selected player vs top match
+**Algorithm Overview:**
+- Calculates scarcity weights for each statistical category based on league-wide rarity
+- Applies impact modifiers to balance position bias (dampens blocks, rewards assists)
+- Multiplies raw production value by square root of team win percentage
+- Produces a comprehensive MVP score that balances individual excellence with team success
 
-### Additional Features
-- **Clutch Time Filter**: Analyze performance in last 5 minutes with score within 5 points
-- **Fuzzy Player Search**: Handles typos and partial name matches
-- **Multi-Season Support**: Compare across different NBA seasons
-- **Raw Data Inspector**: Access underlying shot-level data
+**Features:**
+- Configurable rankings (Top 5, Top 10, Top 20)
+- Detailed breakdowns showing value contributions by category (scoring, playmaking, rebounding, defense)
+- Win percentage and team record integration
+- Visual analytics including value breakdown charts and production vs. winning scatter plots
+
+### 3. Shot Chart Analysis
+Interactive spatial efficiency visualizations with two display modes:
+
+**Scatter View:**
+- Individual shot attempts plotted by court location
+- Color-coded by efficiency relative to league average
+- Filterable by clutch situations (last 5 minutes, within 5 points)
+
+**Heatmap View:**
+- Zone-aggregated shooting performance
+- Hexagonal binning for pattern recognition
+- Hot/cold zone identification
+
+### 4. Player Comparison Engine
+Side-by-side performance analysis with:
+- Dual shot charts with synchronized filtering
+- Head-to-head metrics comparison with delta analysis
+- Radar chart profile overlays
+- Shot distribution and accuracy breakdowns by zone
+- Historical season trend analysis (eFG%, GSAA)
+
+### 5. Doppelganger Finder
+Machine learning-powered player similarity engine using K-Nearest Neighbors algorithm.
+
+**Features Analyzed:**
+- Usage Rate (USG%)
+- True Shooting Percentage (TS%)
+- Assist Rate (AST%)
+- Rebound Rate (REB%)
+- Team Pace
+- Three-Point Attempt Rate (3P_AR)
+
+All features are normalized using StandardScaler for balanced comparison across different statistical ranges.
+
+### 6. Advanced Metrics
+- **Effective Field Goal Percentage (eFG%)**: Weighted shooting percentage accounting for three-point value
+- **Goals Saved Above Average (GSAA)**: Points generated above league average expectation based on shot location
+- **Relative Efficiency**: Zone-specific performance compared to league benchmarks
+- **Position-Adjusted Statistics**: Normalized metrics for fair cross-position comparison
 
 ## Installation
 
-### Prerequisites
-- Python 3.10+
-- pip
+### Requirements
+- Python 3.10 or higher
+- pip package manager
 
-### Setup
+### Setup Instructions
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/Euro_stepper_analyst.git
+git clone https://github.com/designed7000/Euro_stepper_analyst.git
 cd Euro_stepper_analyst
 ```
 
-2. Create a virtual environment:
+2. Create and activate a virtual environment:
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
@@ -72,103 +99,139 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Or install packages individually:
-```bash
-pip install streamlit pandas numpy plotly nba-api scikit-learn
-```
-
-4. Run the application:
+4. Launch the application:
 ```bash
 streamlit run app.py
 ```
 
-## Usage
+The application will open in your default web browser at `http://localhost:8501`.
 
-1. **League Leaders** (enabled by default):
-   - View top performers across Guards, Forwards, and Centers
-   - Switch between Scoring Impact, Playmaking, and Two-Way Impact tabs
-   - Use the dropdown below tables to show Top 5, Top 10, or Top 20 players
-   - Explore advanced analytics charts below the tables
+## Usage Guide
 
-2. **Player Analysis** (un-check League Leaders to focus):
-   - Enter a player name in the sidebar (fuzzy matching supported)
-   - Select a season
-   - Toggle options:
-     - **Compare Players**: Enable side-by-side comparison mode
-     - **Clutch Time Only**: Filter to clutch situations
-     - **Find Similar Players**: Activate the ML similarity engine
-   - Use the chart style toggle to switch between Scatter and Heatmap views
+### Getting Started
+When you first launch the application, you'll see a welcome screen. Select any analysis mode from the sidebar to begin.
+
+### League Leaders Analysis
+1. Check "Show Leaders by Position" in the sidebar
+2. Select your desired season
+3. Navigate between tabs: Scoring Impact, Playmaking, Two-Way Impact
+4. Use the dropdown selector to adjust the number of leaders displayed (Top 5/10/20)
+5. Scroll down to view advanced analytics visualizations
+
+### MVP Ladder
+1. Check "Show MVP Ladder" in the sidebar
+2. Select your desired season
+3. Use the dropdown to view Top 5, Top 10, or Top 20 candidates
+4. Analyze the value breakdown charts to understand each player's contribution profile
+5. Expand the methodology section to learn about the DNA Production Index algorithm
+
+### Player Analysis
+1. Check "Analyze Player" in the sidebar
+2. Enter a player name (fuzzy matching supported - handles typos and partial names)
+3. Select a season
+4. Optional: Enable "Compare Players" for side-by-side analysis
+5. Optional: Enable "Clutch Time Only" to filter to high-leverage situations
+6. Optional: Enable "Find Similar Players" to activate the ML similarity engine
+7. Toggle between Scatter and Heatmap chart views
 
 ## Data Sources
 
-- **NBA API**: All data sourced from official NBA statistics via the `nba_api` Python package
-- **Shot Chart Detail**: Individual shot locations and outcomes
-- **League Dash Player Stats**: Base stats (PTS, AST, REB, etc.) and Advanced metrics (USG%, TS%, OFF/DEF Rating, AST/TO)
-- **Per 100 Possessions Stats**: Rate-based metrics for fair cross-player comparison
+All data is sourced from official NBA statistics via the `nba_api` Python package:
+- **Shot Chart Detail**: Individual shot locations, outcomes, and game context
+- **League Dashboard Player Stats**: Base statistics and advanced metrics
+- **League Standings**: Team records and win percentages for MVP calculations
+- **Per 100 Possessions**: Rate-based statistics for normalized comparisons
 
-## Tech Stack
+## Technical Architecture
 
-- **Frontend**: Streamlit
-- **Visualization**: Plotly (interactive charts)
+### Stack
+- **Frontend Framework**: Streamlit
+- **Data Visualization**: Plotly (interactive charts)
 - **Data Processing**: Pandas, NumPy
 - **Machine Learning**: scikit-learn (StandardScaler, NearestNeighbors)
-- **Data Source**: nba_api
+- **Data API**: nba_api
 
-## Project Structure
-
+### Project Structure
 ```
 Euro_stepper_analyst/
-├── app.py                    # Main Streamlit application entry point
-├── config.py                 # Configuration settings and constants
-├── logo.png                  # Application logo
+├── app.py                    # Main application entry point
+├── config.py                 # Configuration and constants
 ├── requirements.txt          # Python dependencies
-├── README.md                 # This file
+├── README.md                 # Documentation
 │
-├── data/                     # Data layer
-│   ├── __init__.py
-│   ├── api.py                # NBA API calls (cached)
-│   └── processing.py         # DataFrame transformations
+├── data/                     # Data access layer
+│   ├── api.py                # NBA API calls with caching
+│   └── processing.py         # Data transformations and aggregations
 │
 ├── charts/                   # Visualization layer
-│   ├── __init__.py
-│   ├── court.py              # Shot charts (scatter + hexbin)
+│   ├── court.py              # Shot charts (scatter, hexbin)
 │   ├── comparisons.py        # Radar charts, zone comparisons
-│   └── trends.py             # Historical trends, leader visualizations
+│   ├── trends.py             # Historical trends, leader charts
+│   └── awards.py             # MVP ladder visualizations
 │
-├── analysis/                 # Analytics layer
-│   ├── __init__.py
-│   └── similarity.py         # ML player similarity engine
+├── analysis/                 # Analytics engines
+│   ├── similarity.py         # ML player similarity matching
+│   └── awards.py             # MVP ladder calculations (DNA Production Index)
 │
-└── utils/                    # Utility functions
-    ├── __init__.py
-    └── helpers.py            # Player name matching, normalization
+└── utils/                    # Helper functions
+    └── helpers.py            # Player name matching, data normalization
 ```
 
-## Metrics Explained
+## Key Metrics Reference
 
-| Metric | Description |
-|--------|-------------|
-| FG% | Field Goal Percentage (makes / attempts) |
-| eFG% | Effective FG% = (FGM + 0.5 * 3PM) / FGA |
-| GSAA | Points scored minus expected points based on shot location |
-| Relative Efficiency | Player FG% minus league average FG% from same zone |
-| Usage Rate | Percentage of team possessions used by player |
-| True Shooting % | Points / (2 * (FGA + 0.44 * FTA)) |
+| Metric | Formula | Description |
+|--------|---------|-------------|
+| **FG%** | FGM / FGA | Field Goal Percentage |
+| **eFG%** | (FGM + 0.5 × 3PM) / FGA | Effective FG% (weights three-pointers) |
+| **GSAA** | Actual Points - Expected Points | Points generated above league average by shot location |
+| **Relative Efficiency** | Player FG% - League Avg FG% (same zone) | Zone-specific performance differential |
+| **USG%** | Player Possessions / Team Possessions | Percentage of team plays used by player |
+| **TS%** | PTS / (2 × (FGA + 0.44 × FTA)) | True Shooting Percentage |
+| **Net Rating** | Offensive Rating - Defensive Rating | Two-way impact metric |
+| **MVP Score** | Raw Value × √(Win %) | DNA Production Index MVP ranking |
+
+## DNA Production Index Methodology
+
+The MVP ladder uses a scarcity-weighted approach to value production:
+
+1. **Scarcity Weight Calculation**: `Weight = (Total League Points) / (Total League Stat)`
+2. **Impact Modifiers**: Applied to balance position bias
+   - Assists: ×1.5 (reward creation)
+   - Rebounds: ×0.7 (dampen raw volume)
+   - Blocks: ×0.6 (prevent center dominance)
+   - Steals: ×1.0 (balanced)
+3. **Raw Production**: Sum of weighted stat contributions minus turnover penalty
+4. **Team Success Modifier**: `MVP Score = Raw Value × √(Team Win Percentage)`
+
+This approach rewards individual excellence while accounting for team success, using a square root function to avoid over-penalizing players on mid-tier teams.
 
 ## Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-feature`)
-3. Commit changes (`git commit -am 'Add new feature'`)
-4. Push to branch (`git push origin feature/new-feature`)
-5. Open a Pull Request
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -am 'Add new feature'`
+4. Push to the branch: `git push origin feature/your-feature-name`
+5. Submit a Pull Request
+
+Please ensure your code follows existing style conventions and includes appropriate documentation.
 
 ## License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Acknowledgments
 
-- NBA API maintainers for the `nba_api` package
-- Streamlit team for the web framework
-- NBA for the underlying statistics
+- NBA API development team for the `nba_api` package
+- Streamlit team for the web application framework
+- NBA for providing comprehensive basketball statistics
+- Open source community for various supporting libraries
+
+## Contact
+
+For questions, suggestions, or issues, please open an issue on GitHub or contact the repository owner.
+
+---
+
+**Note**: This application is for educational and analytical purposes. All NBA data is property of the NBA and used in accordance with their terms of service.
