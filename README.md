@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="images/logo.png" alt="NBA Player DNA Logo" width="120"/>
+  <img src="images/logo.png" alt="NBA Player DNA Logo" width="140"/>
 </p>
 
 <h1 align="center">NBA Player DNA</h1>
@@ -30,7 +30,6 @@
 <p align="center">
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
-  <a href="#usage">Usage</a> •
   <a href="#methodology">Methodology</a> •
   <a href="#contributing">Contributing</a>
 </p>
