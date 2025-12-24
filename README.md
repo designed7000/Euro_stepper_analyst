@@ -58,7 +58,7 @@ A Streamlit-powered NBA analytics dashboard that visualizes player shooting patt
 1. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/Euro_stepper_analyst.git
-cd nba-shot-dna
+cd Euro_stepper_analyst
 ```
 
 2. Create a virtual environment:
