@@ -4,6 +4,19 @@ A Streamlit-powered NBA analytics dashboard that visualizes player shooting patt
 
 ## Features
 
+### League Leaders by Position
+- **Scoring Impact**: Top scorers ranked by USG% × TS% (usage load × efficiency)
+- **Playmaking**: Best facilitators ranked by AST/100 possessions weighted by AST/TO ratio
+- **Two-Way Impact**: Elite players ranked by Net Rating (Offense - Defense)
+- **Position Breakdown**: Guards, Forwards, and Centers displayed in separate columns
+- **Flexible Display**: Toggle between Top 5, Top 10, and Top 20 players per position
+
+### Advanced Analytics Visualizations
+- **Scoring Load vs Efficiency**: Scatter plot of USG% vs TS% with league average reference line
+- **Playmaking Creation vs Security**: AST per 100 possessions vs TOV per 100 (inverted axis for elite zone in top-right)
+- **Two-Way Quadrant Chart**: Offensive Rating vs Defensive Rating with quadrant zones
+- **Top Scorers Bar Chart**: Horizontal bar chart of top 10 PPG leaders by position
+
 ### Shot Chart Visualization
 - **Relative Efficiency Maps**: Interactive shot charts showing each shot attempt colored by performance vs league average
 - **Heatmap View**: Aggregated zone-based visualization showing hot/cold shooting areas
@@ -71,19 +84,27 @@ streamlit run test.py
 
 ## Usage
 
-1. Enter a player name in the sidebar (fuzzy matching supported)
-2. Select a season
-3. Toggle options:
-   - **Compare Players**: Enable side-by-side comparison mode
-   - **Clutch Time Only**: Filter to clutch situations
-   - **Find Similar Players**: Activate the ML similarity engine
-4. Use the chart style toggle to switch between Scatter and Heatmap views
+1. **League Leaders** (enabled by default):
+   - View top performers across Guards, Forwards, and Centers
+   - Switch between Scoring Impact, Playmaking, and Two-Way Impact tabs
+   - Use the dropdown below tables to show Top 5, Top 10, or Top 20 players
+   - Explore advanced analytics charts below the tables
+
+2. **Player Analysis** (un-check League Leaders to focus):
+   - Enter a player name in the sidebar (fuzzy matching supported)
+   - Select a season
+   - Toggle options:
+     - **Compare Players**: Enable side-by-side comparison mode
+     - **Clutch Time Only**: Filter to clutch situations
+     - **Find Similar Players**: Activate the ML similarity engine
+   - Use the chart style toggle to switch between Scatter and Heatmap views
 
 ## Data Sources
 
 - **NBA API**: All data sourced from official NBA statistics via the `nba_api` Python package
 - **Shot Chart Detail**: Individual shot locations and outcomes
-- **League Dash Player Stats**: Advanced metrics for similarity analysis
+- **League Dash Player Stats**: Base stats (PTS, AST, REB, etc.) and Advanced metrics (USG%, TS%, OFF/DEF Rating, AST/TO)
+- **Per 100 Possessions Stats**: Rate-based metrics for fair cross-player comparison
 
 ## Tech Stack
 

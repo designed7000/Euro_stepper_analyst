@@ -418,8 +418,126 @@ def find_similar_players(player_name, stats_df, nn_model, scaler, feature_cols):
     
     return similar_players, player_row.iloc[0], None
 
+@st.cache_data
+def get_league_leaders(season):
+    """Fetch league leaders with position data and advanced metrics."""
+    import time
+    
+    # Get base stats (per game)
+    stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        measure_type_detailed_defense='Base',
+        per_mode_detailed='PerGame'
+    )
+    df = stats.get_data_frames()[0]
+    time.sleep(0.4)
+    
+    # Get advanced stats (USG%, TS%, OFF/DEF Rating, AST_TO, etc.)
+    adv_stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        measure_type_detailed_defense='Advanced',
+        per_mode_detailed='PerGame'
+    )
+    adv_df = adv_stats.get_data_frames()[0]
+    time.sleep(0.4)
+    
+    # Get per-100 possessions stats for pace-adjusted metrics
+    per100_stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        measure_type_detailed_defense='Base',
+        per_mode_detailed='Per100Possessions'
+    )
+    per100_df = per100_stats.get_data_frames()[0]
+    
+    # Merge advanced stats
+    adv_cols = ['PLAYER_ID', 'TS_PCT', 'USG_PCT', 'AST_TO', 'AST_RATIO', 
+                'OFF_RATING', 'DEF_RATING', 'NET_RATING', 'PIE']
+    df = df.merge(adv_df[adv_cols], on='PLAYER_ID', how='left')
+    
+    # Merge per-100 stats (rename to avoid conflicts)
+    per100_cols = ['PLAYER_ID', 'AST', 'TOV', 'PTS', 'STL', 'BLK']
+    per100_renamed = per100_df[per100_cols].copy()
+    per100_renamed.columns = ['PLAYER_ID', 'AST_PER100', 'TOV_PER100', 'PTS_PER100', 'STL_PER100', 'BLK_PER100']
+    df = df.merge(per100_renamed, on='PLAYER_ID', how='left')
+    
+    # Filter: minimum 15 games and 20 minutes
+    df = df[(df['GP'] >= 15) & (df['MIN'] >= 20)]
+    
+    # Stats-based heuristic for position detection (most reliable method)
+    def estimate_position(row):
+        ast = float(row.get('AST', 0) or 0)
+        reb = float(row.get('REB', 0) or 0)
+        blk = float(row.get('BLK', 0) or 0)
+        fg3a = float(row.get('FG3A', 0) or 0)
+        fga = float(row.get('FGA', 1) or 1)
+        
+        three_rate = fg3a / fga if fga > 0 else 0
+        
+        # Centers: High rebounds OR high blocks
+        if (reb >= 8) or (reb >= 6 and blk >= 1.2) or (blk >= 1.5):
+            return 'Center'
+        # Guards: High assists OR high 3pt rate with low rebounds
+        elif ast >= 4.5 or (three_rate > 0.4 and reb < 5) or (reb < 4 and ast >= 3):
+            return 'Guard'
+        # Forwards: Everything else
+        else:
+            return 'Forward'
+    
+    df['POSITION_GROUP'] = df.apply(estimate_position, axis=1)
+    
+    # Remove players without position data
+    df = df[df['POSITION_GROUP'].notna()]
+    
+    return df
+
+def get_top_players_by_position_smart(df, category, n=5):
+    """Get top N players per position using smart composite metrics."""
+    
+    results = {}
+    
+    for pos in ['Guard', 'Forward', 'Center']:
+        pos_df = df[df['POSITION_GROUP'] == pos].copy()
+        
+        if pos_df.empty:
+            continue
+        
+        if category == 'scoring':
+            # Scoring Impact = USG% × TS% (load × efficiency)
+            # Both stored as decimals (0.25 = 25%)
+            pos_df['_score'] = (pos_df['USG_PCT'].fillna(0.2) * pos_df['TS_PCT'].fillna(0.5))
+            pos_df = pos_df.nlargest(n, '_score')
+            pos_df['Value'] = pos_df.apply(
+                lambda r: f"{r['PTS']:.1f} pts | {r['USG_PCT']*100:.1f}% USG | {r['TS_PCT']*100:.1f}% TS", axis=1
+            )
+            
+        elif category == 'playmaking':
+            # Playmaking = AST per 100 poss weighted by AST/TO ratio
+            # Pace-adjusted creation with ball security
+            pos_df['_score'] = pos_df['AST_PER100'].fillna(0) * (1 + pos_df['AST_TO'].fillna(1) * 0.2)
+            pos_df = pos_df.nlargest(n, '_score')
+            pos_df['Value'] = pos_df.apply(
+                lambda r: f"{r['AST_PER100']:.1f} ast/100 | {r['AST_TO']:.2f} A/TO", axis=1
+            )
+            
+        elif category == 'impact':
+            # Two-Way Impact = Net Rating (OFF_RATING - DEF_RATING already captured)
+            # Shows true +/- impact on both ends
+            pos_df['_score'] = pos_df['NET_RATING'].fillna(0)
+            pos_df = pos_df.nlargest(n, '_score')
+            pos_df['Value'] = pos_df.apply(
+                lambda r: f"+{r['NET_RATING']:.1f} NET | {r['OFF_RATING']:.0f} OFF | {r['DEF_RATING']:.0f} DEF" 
+                          if r['NET_RATING'] >= 0 
+                          else f"{r['NET_RATING']:.1f} NET | {r['OFF_RATING']:.0f} OFF | {r['DEF_RATING']:.0f} DEF", 
+                axis=1
+            )
+        
+        results[pos] = pos_df[['PLAYER_NAME', 'TEAM_ABBREVIATION', 'Value']].copy()
+        results[pos].columns = ['Player', 'Team', 'Stats']
+    
+    return results
+
 # --- MAIN DASHBOARD INTERFACE ---
-st.title("🏀 NBA Player DNA: Spatial Efficiency Engine")
+st.title("NBA Player DNA: Spatial Efficiency Engine")
 
 # Sidebar for Inputs
 with st.sidebar:
@@ -427,25 +545,382 @@ with st.sidebar:
     st.image("logo.png", use_container_width=True)
     
     st.header("Analyst Controls")
+    
+    # Season selector at top
+    season = st.selectbox("Season", ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22", "2015-16"])
+    
+    st.markdown("---")
+    
+    # --- LEAGUE LEADERS (checked by default) ---
+    st.subheader("League Leaders")
+    show_leaders = st.checkbox("Show Leaders by Position", value=True,
+                               help="View top performers across positions")
+    
+    st.caption("To study players, un-check League Leaders")
+    
+    st.markdown("---")
+    
+    # --- PLAYER ANALYSIS ---
+    st.subheader("Player Analysis")
     player_name_a = st.text_input("Player A Name", "Stephen Curry")
     
-    st.subheader("Comparison Mode")
     compare_mode = st.checkbox("Compare Players", value=False)
     if compare_mode:
         player_name_b = st.text_input("Player B Name", "LeBron James")
-    
-    season = st.selectbox("Season", ["2024-25", "2023-24", "2022-23", "2021-22", "2015-16"])
     
     st.subheader("Game Context")
     clutch_only = st.checkbox("Clutch Time Only", value=False, 
                                help="Last 5 min, score within 5 pts")
     
-    st.subheader("🔍 Player Discovery")
+    st.subheader("Player Discovery")
     show_doppelganger = st.checkbox("Find Similar Players", value=False,
                                      help="ML-powered player similarity engine")
 
 # --- ANALYTICS ENGINE ---
 try:
+    # --- LEAGUE LEADERS MODE (displays at top when enabled) ---
+    if show_leaders:
+        st.subheader("League Leaders by Position")
+        
+        # Tabs for different metrics - clean and simple
+        leader_tab1, leader_tab2, leader_tab3 = st.tabs(["Scoring Impact", "Playmaking", "Two-Way Impact"])
+        
+        with st.spinner("Loading league leaders..."):
+            try:
+                leaders_df = get_league_leaders(season)
+                
+                if leaders_df.empty or leaders_df['POSITION_GROUP'].isna().all():
+                    st.warning("Could not load position data for this season. Try a different season.")
+                else:
+                    # Helper function to display position tables with selector BELOW
+                    def display_position_tables_with_selector(df, category, description, key_suffix):
+                        # Create placeholder for tables first, selector second
+                        tables_container = st.container()
+                        
+                        # Selector below tables - centered, wider box
+                        _, sel_col, _ = st.columns([2, 1, 2])
+                        with sel_col:
+                            num_leaders = st.selectbox("Show", ["Top 5", "Top 10", "Top 20"], index=0, 
+                                                       label_visibility="collapsed", key=f"leaders_{key_suffix}")
+                            num_leaders = int(num_leaders.split()[1])
+                        
+                        # Now render tables in the container above
+                        with tables_container:
+                            table_height = 35 + (num_leaders * 35)
+                            top_players = get_top_players_by_position_smart(df, category, n=num_leaders)
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.markdown("**Guards**")
+                                if 'Guard' in top_players and not top_players['Guard'].empty:
+                                    guard_df = top_players['Guard'].reset_index(drop=True)
+                                    guard_df.index = guard_df.index + 1
+                                    st.dataframe(guard_df, use_container_width=True, hide_index=False, height=table_height)
+                                else:
+                                    st.caption("No guard data")
+                            
+                            with col2:
+                                st.markdown("**Forwards**")
+                                if 'Forward' in top_players and not top_players['Forward'].empty:
+                                    forward_df = top_players['Forward'].reset_index(drop=True)
+                                    forward_df.index = forward_df.index + 1
+                                    st.dataframe(forward_df, use_container_width=True, hide_index=False, height=table_height)
+                                else:
+                                    st.caption("No forward data")
+                            
+                            with col3:
+                                st.markdown("**Centers**")
+                                if 'Center' in top_players and not top_players['Center'].empty:
+                                    center_df = top_players['Center'].reset_index(drop=True)
+                                    center_df.index = center_df.index + 1
+                                    st.dataframe(center_df, use_container_width=True, hide_index=False, height=table_height)
+                                else:
+                                    st.caption("No center data")
+                    
+                    # Display each tab with smart composite metrics
+                    with leader_tab1:
+                        st.caption(f"Ranked by USG% × TS% (load × efficiency) | {season}")
+                        display_position_tables_with_selector(leaders_df, "scoring", "PTS × TS%", "scoring")
+                    
+                    with leader_tab2:
+                        st.caption(f"Ranked by AST/100 poss weighted by AST/TO ratio | {season}")
+                        display_position_tables_with_selector(leaders_df, "playmaking", "AST Impact", "playmaking")
+                    
+                    with leader_tab3:
+                        st.caption(f"Ranked by Net Rating (Offense - Defense) | {season}")
+                        display_position_tables_with_selector(leaders_df, "impact", "Two-Way", "impact")
+                    
+                    # --- VISUALIZATIONS ---
+                    st.markdown("---")
+                    st.subheader("Advanced Analytics")
+                    
+                    # Row 1: Scoring Load vs Efficiency & Playmaking
+                    viz_col1, viz_col2 = st.columns(2)
+                    
+                    with viz_col1:
+                        # CHART 1: Heliocentric Scoring - USG% vs TS%
+                        import plotly.express as px
+                        
+                        # Filter for high-usage players (USG stored as decimal, e.g. 0.25 = 25%)
+                        scoring_df = leaders_df[
+                            leaders_df['USG_PCT'].notna() & 
+                            (leaders_df['USG_PCT'] >= 0.15)  # 15%+ usage
+                        ].copy()
+                        
+                        if not scoring_df.empty:
+                            # Convert to display percentages
+                            scoring_df['USG_DISPLAY'] = scoring_df['USG_PCT'] * 100
+                            scoring_df['TS_DISPLAY'] = scoring_df['TS_PCT'] * 100
+                            
+                            # Calculate league average TS%
+                            league_avg_ts = scoring_df['TS_DISPLAY'].mean()
+                            
+                            fig_helio = px.scatter(
+                                scoring_df,
+                                x='USG_DISPLAY',
+                                y='TS_DISPLAY',
+                                size='PTS',
+                                color='POSITION_GROUP',
+                                hover_name='PLAYER_NAME',
+                                hover_data={
+                                    'USG_DISPLAY': ':.1f',
+                                    'TS_DISPLAY': ':.1f',
+                                    'PTS': ':.1f',
+                                    'POSITION_GROUP': False
+                                },
+                                title='Scoring Load vs Efficiency',
+                                color_discrete_map={'Guard': '#00CED1', 'Forward': '#FF6B6B', 'Center': '#98D8C8'},
+                                template='plotly_dark'
+                            )
+                            
+                            # Add league average TS% line
+                            fig_helio.add_hline(
+                                y=league_avg_ts, 
+                                line_dash="dash", 
+                                line_color="rgba(255,255,255,0.5)",
+                                annotation_text=f"League Avg ({league_avg_ts:.1f}%)",
+                                annotation_position="top right",
+                                annotation_font_color="rgba(255,255,255,0.7)"
+                            )
+                            
+                            # Add zone annotations
+                            x_max = scoring_df['USG_DISPLAY'].max()
+                            x_min = scoring_df['USG_DISPLAY'].min()
+                            y_max = scoring_df['TS_DISPLAY'].max()
+                            y_min = scoring_df['TS_DISPLAY'].min()
+                            
+                            # Elite zone (high usage, high efficiency) - top right
+                            fig_helio.add_annotation(
+                                x=x_max - 3, y=y_max - 2,
+                                text="ELITE",
+                                showarrow=False,
+                                font=dict(size=11, color='#FFD700'),
+                                bgcolor='rgba(0,0,0,0.5)'
+                            )
+                            
+                            # Volume zone (high usage, avg efficiency) - right middle
+                            fig_helio.add_annotation(
+                                x=x_max - 3, y=league_avg_ts - 3,
+                                text="Volume",
+                                showarrow=False,
+                                font=dict(size=10, color='rgba(255,255,255,0.6)'),
+                                bgcolor='rgba(0,0,0,0.4)'
+                            )
+                            
+                            # Efficient role player zone (low usage, high efficiency) - top left
+                            fig_helio.add_annotation(
+                                x=x_min + 5, y=y_max - 2,
+                                text="Efficient",
+                                showarrow=False,
+                                font=dict(size=10, color='rgba(255,255,255,0.6)'),
+                                bgcolor='rgba(0,0,0,0.4)'
+                            )
+                            
+                            fig_helio.update_layout(
+                                height=380,
+                                margin=dict(l=20, r=20, t=50, b=20),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                                xaxis_title="Usage Rate %",
+                                yaxis_title="True Shooting %"
+                            )
+                            fig_helio.update_traces(marker=dict(line=dict(width=1, color='white'), sizemin=5))
+                            st.plotly_chart(fig_helio, use_container_width=True)
+                            st.caption("Bubble size = PPG • Above line = efficient scorers")
+                        else:
+                            st.warning("No scoring data available for this filter")
+                    
+                    with viz_col2:
+                        # CHART 2: Playmaking - Per 100 Possessions with inverted Y-axis
+                        play_df = leaders_df[
+                            leaders_df['AST_PER100'].notna() & 
+                            leaders_df['TOV_PER100'].notna() &
+                            (leaders_df['AST'] >= 3)  # Focus on actual playmakers
+                        ].copy()
+                        
+                        if not play_df.empty:
+                            # Use AST_TO ratio for bubble size
+                            play_df['AST_TO_SAFE'] = play_df['AST_TO'].fillna(1).clip(lower=0.5)
+                            
+                            fig_play = px.scatter(
+                                play_df,
+                                x='AST_PER100',
+                                y='TOV_PER100',
+                                size='AST_TO_SAFE',
+                                color='POSITION_GROUP',
+                                hover_name='PLAYER_NAME',
+                                hover_data={
+                                    'AST_PER100': ':.1f',
+                                    'TOV_PER100': ':.1f',
+                                    'AST_TO_SAFE': False,
+                                    'AST_TO': ':.2f',
+                                    'POSITION_GROUP': False
+                                },
+                                title='Playmaking: Creation vs Security',
+                                color_discrete_map={'Guard': '#00CED1', 'Forward': '#FF6B6B', 'Center': '#98D8C8'},
+                                template='plotly_dark',
+                                labels={'AST_PER100': 'AST per 100', 'TOV_PER100': 'TOV per 100'}
+                            )
+                            
+                            # INVERT Y-axis so low turnovers are at top (elite zone = top-right)
+                            y_max = play_df['TOV_PER100'].max() + 1
+                            y_min = max(0, play_df['TOV_PER100'].min() - 1)
+                            fig_play.update_yaxes(range=[y_max, y_min], autorange=False)
+                            
+                            # Add "Elite Zone" annotation
+                            fig_play.add_annotation(
+                                x=play_df['AST_PER100'].max() * 0.9,
+                                y=y_min + 0.5,
+                                text="ELITE",
+                                showarrow=False,
+                                font=dict(size=12, color='#FFD700'),
+                                bgcolor='rgba(0,0,0,0.5)'
+                            )
+                            
+                            fig_play.update_layout(
+                                height=380,
+                                margin=dict(l=20, r=20, t=50, b=20),
+                                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                                xaxis_title="Assists per 100 Poss",
+                                yaxis_title="Turnovers per 100 Poss"
+                            )
+                            fig_play.update_traces(marker=dict(line=dict(width=1, color='white'), sizemin=6))
+                            st.plotly_chart(fig_play, use_container_width=True)
+                            st.caption("Bubble size = AST/TO ratio | Top-right = elite playmakers")
+                    
+                    # Row 2: Two-Way Quadrant Chart (OFF vs DEF Rating)
+                    st.markdown("##### Two-Way Impact Quadrant")
+                    
+                    # Filter players with valid ratings
+                    twoway_df = leaders_df[
+                        leaders_df['OFF_RATING'].notna() & 
+                        leaders_df['DEF_RATING'].notna() &
+                        (leaders_df['MIN'] >= 25)  # Significant minutes
+                    ].copy()
+                    
+                    if not twoway_df.empty:
+                        # Calculate averages for reference lines
+                        avg_off = twoway_df['OFF_RATING'].mean()
+                        avg_def = twoway_df['DEF_RATING'].mean()
+                        
+                        fig_quadrant = px.scatter(
+                            twoway_df,
+                            x='OFF_RATING',
+                            y='DEF_RATING',
+                            color='POSITION_GROUP',
+                            hover_name='PLAYER_NAME',
+                            hover_data={
+                                'OFF_RATING': ':.1f',
+                                'DEF_RATING': ':.1f',
+                                'NET_RATING': ':.1f',
+                                'PTS': ':.1f',
+                                'POSITION_GROUP': False
+                            },
+                            title='Offensive vs Defensive Rating',
+                            color_discrete_map={'Guard': '#00CED1', 'Forward': '#FF6B6B', 'Center': '#98D8C8'},
+                            template='plotly_dark'
+                        )
+                        
+                        # INVERT Y-axis for defense (lower DEF_RATING = better defense)
+                        y_max = twoway_df['DEF_RATING'].max() + 2
+                        y_min = twoway_df['DEF_RATING'].min() - 2
+                        fig_quadrant.update_yaxes(range=[y_max, y_min], autorange=False)
+                        
+                        # Add crosshair reference lines at league average
+                        fig_quadrant.add_vline(x=avg_off, line_dash="solid", line_color="rgba(255,255,255,0.3)", line_width=2)
+                        fig_quadrant.add_hline(y=avg_def, line_dash="solid", line_color="rgba(255,255,255,0.3)", line_width=2)
+                        
+                        # Add quadrant labels
+                        x_range = twoway_df['OFF_RATING'].max() - twoway_df['OFF_RATING'].min()
+                        y_range = y_max - y_min
+                        
+                        # Top-Right: MVP Candidates (high OFF, low DEF rating)
+                        fig_quadrant.add_annotation(
+                            x=avg_off + x_range * 0.3, y=avg_def - y_range * 0.35,
+                            text="MVP Candidates",
+                            showarrow=False, font=dict(size=11, color='#FFD700'),
+                            bgcolor='rgba(0,0,0,0.6)'
+                        )
+                        # Bottom-Right: Offensive Specialists
+                        fig_quadrant.add_annotation(
+                            x=avg_off + x_range * 0.3, y=avg_def + y_range * 0.35,
+                            text="Offense Only",
+                            showarrow=False, font=dict(size=10, color='#FF6B6B'),
+                            bgcolor='rgba(0,0,0,0.5)'
+                        )
+                        # Top-Left: Defensive Specialists
+                        fig_quadrant.add_annotation(
+                            x=avg_off - x_range * 0.3, y=avg_def - y_range * 0.35,
+                            text="Defense Only",
+                            showarrow=False, font=dict(size=10, color='#98D8C8'),
+                            bgcolor='rgba(0,0,0,0.5)'
+                        )
+                        
+                        fig_quadrant.update_layout(
+                            height=420,
+                            margin=dict(l=20, r=20, t=50, b=40),
+                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                            xaxis_title="Offensive Rating",
+                            yaxis_title="Defensive Rating (lower = better)"
+                        )
+                        fig_quadrant.update_traces(marker=dict(size=10, line=dict(width=1, color='white')))
+                        st.plotly_chart(fig_quadrant, use_container_width=True)
+                        st.caption("Crosshairs = league average | Top-right quadrant = elite two-way players")
+                    
+                    # Row 3: Top Scorers (keep the big one)
+                    st.markdown("##### Top 10 Scorers Across All Positions")
+                    top_scorers = leaders_df.nlargest(10, 'PTS')[['PLAYER_NAME', 'PTS', 'POSITION_GROUP', 'TEAM_ABBREVIATION']].copy()
+                    top_scorers = top_scorers.sort_values('PTS', ascending=True)
+                    
+                    colors_map = {'Guard': '#00CED1', 'Forward': '#FF6B6B', 'Center': '#98D8C8'}
+                    bar_colors = [colors_map.get(pos, '#888888') for pos in top_scorers['POSITION_GROUP']]
+                    
+                    fig_top = go.Figure(go.Bar(
+                        x=top_scorers['PTS'],
+                        y=top_scorers['PLAYER_NAME'],
+                        orientation='h',
+                        marker_color=bar_colors,
+                        text=top_scorers.apply(lambda r: f"{r['PTS']:.1f} ({r['TEAM_ABBREVIATION']})", axis=1),
+                        textposition='outside'
+                    ))
+                    fig_top.update_layout(
+                        template='plotly_dark',
+                        height=400,
+                        margin=dict(l=20, r=80, t=20, b=20),
+                        xaxis_title="Points Per Game",
+                        yaxis_title="",
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig_top, use_container_width=True)
+                    
+                    # Position legend
+                    st.caption("Guard (cyan) | Forward (red) | Center (green)")
+                            
+            except Exception as e:
+                st.error(f"Error loading leaders: {str(e)}")
+        
+        # Stop here - don't show individual player content when in Leaders mode
+        st.stop()
+    
     # Get Player A data with fuzzy matching
     p_id_a, corrected_name_a, match_msg_a = get_player_id(player_name_a)
     
@@ -455,7 +930,7 @@ try:
     
     # Show correction message if name was fuzzy matched
     if match_msg_a:
-        st.info(f"🔍 {match_msg_a}")
+        st.info(f"{match_msg_a}")
     
     # Use corrected name for display
     player_name_a = corrected_name_a
@@ -481,7 +956,7 @@ try:
         
         # Show correction message if name was fuzzy matched
         if match_msg_b:
-            st.info(f"🔍 {match_msg_b}")
+            st.info(f"{match_msg_b}")
         
         # Use corrected name for display
         player_name_b = corrected_name_b
@@ -500,14 +975,14 @@ try:
     # Show clutch indicator if enabled
     if clutch_only:
         if compare_mode:
-            st.info(f"🔥 Clutch Time: {player_name_a} ({len(df_a)} shots) vs {player_name_b} ({len(df_b)} shots)")
+            st.info(f"Clutch Time: {player_name_a} ({len(df_a)} shots) vs {player_name_b} ({len(df_b)} shots)")
         else:
-            st.info(f"🔥 Clutch Time: {len(df_a)} shots (Last 5 min, score within 5 pts)")
+            st.info(f"Clutch Time: {len(df_a)} shots (Last 5 min, score within 5 pts)")
     
     # --- METRICS DISPLAY ---
     if compare_mode:
         # Comparison metrics table
-        st.subheader("📊 Head-to-Head Comparison")
+        st.subheader("Head-to-Head Comparison")
         
         # Calculate deltas
         delta_attempts = metrics_a['attempts'] - metrics_b['attempts']
@@ -564,7 +1039,7 @@ try:
         
         st.dataframe(styled_df, use_container_width=True, hide_index=True)
         
-        st.caption("💡 Delta shows Player A minus Player B. 🟢 Positive = Player A higher | 🔴 Negative = Player B higher")
+        st.caption("Delta shows Player A minus Player B. Positive = Player A higher | Negative = Player B higher")
         
     else:
         # Single player metrics
@@ -575,7 +1050,7 @@ try:
         col4.metric("3PT Volume", f"{metrics_a['threes_attempted']}")
         col5.metric("Points Added (GSAA)", f"{metrics_a['gsaa']:+.1f}")
         
-        st.caption("💡 **Points Added (GSAA)**: Points generated solely by shooting skill above league average expectation.")
+        st.caption("**Points Added (GSAA)**: Points generated solely by shooting skill above league average expectation.")
     
     # --- SHOT CHARTS ---
     st.subheader("Relative Efficiency Maps")
@@ -591,9 +1066,9 @@ try:
     
     # Add explanation based on view
     if use_hexbin:
-        st.caption("🔥 **Heatmap View**: Larger hexagons = more shots from that area. Color shows efficiency vs league average (🔵 blue = above avg, 🔴 red = below avg)")
+        st.caption("**Heatmap View**: Larger hexagons = more shots from that area. Color shows efficiency vs league average (blue = above avg, red = below avg)")
     else:
-        st.caption("📍 **Scatter View**: Each dot is a shot attempt. Color shows efficiency vs league average (🔵 blue = above avg, 🔴 red = below avg)")
+        st.caption("**Scatter View**: Each dot is a shot attempt. Color shows efficiency vs league average (blue = above avg, red = below avg)")
     
     # Use consistent color scale for comparison
     color_range = (-0.15, 0.15)
@@ -623,7 +1098,7 @@ try:
             st.plotly_chart(fig_b, use_container_width=True)
         
         # --- RADAR CHART COMPARISON ---
-        st.subheader("📊 Player Profile Comparison")
+        st.subheader("Player Profile Comparison")
         
         # Calculate zone rates first
         zone_mapping = {
@@ -767,7 +1242,7 @@ try:
             """)
         
         # --- SHOT FREQUENCY COMPARISON ---
-        st.subheader("🎯 Shot Distribution & Accuracy")
+        st.subheader("Shot Distribution & Accuracy")
         
         # Calculate distributions AND accuracy for both players by zone
         zones = ['Rim', 'Mid-Range', '3-Point']
@@ -863,10 +1338,10 @@ try:
         
         st.plotly_chart(freq_bar_fig, use_container_width=True)
         
-        st.caption("📊 **Reading the chart**: Bar height shows how often each player shoots from that zone. The percentage inside shows their accuracy (FG%) from that zone.")
+        st.caption("**Reading the chart**: Bar height shows how often each player shoots from that zone. The percentage inside shows their accuracy (FG%) from that zone.")
         
         # --- HISTORICAL SEASON TREND ---
-        st.subheader("📈 Historical Season Comparison")
+        st.subheader("Historical Season Comparison")
         
         historical_seasons = ["2024-25", "2023-24", "2022-23", "2021-22"]
         
@@ -1092,12 +1567,12 @@ try:
         )
         
         st.plotly_chart(freq_fig, use_container_width=True)
-        st.caption("📊 **Reading the chart**: Bar height = shot frequency from zone | Inside % = shooting accuracy (FG%) | ▲▼ = difference vs league")
+        st.caption("**Reading the chart**: Bar height = shot frequency from zone | Inside % = shooting accuracy (FG%) | Up/Down arrows = difference vs league")
     
     # --- DOPPELGÄNGER FINDER SECTION ---
     if show_doppelganger:
         st.markdown("---")
-        st.subheader("🔍 Statistical Doppelgängers")
+        st.subheader("Statistical Doppelgangers")
         st.caption("Finding players with similar playing styles using machine learning")
         
         with st.spinner("Building similarity model..."):
@@ -1117,7 +1592,7 @@ try:
                     )
                     
                     if error:
-                        st.warning(f"⚠️ {error}. Player may not have enough games this season.")
+                        st.warning(f"{error}. Player may not have enough games this season.")
                     elif similar_players:
                         # Display results
                         st.markdown(f"**Top 5 players most similar to {player_name_a}:**")
