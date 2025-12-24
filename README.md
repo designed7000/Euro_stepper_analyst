@@ -79,7 +79,7 @@ pip install streamlit pandas numpy plotly nba-api scikit-learn
 
 4. Run the application:
 ```bash
-streamlit run test.py
+streamlit run app.py
 ```
 
 ## Usage
@@ -117,12 +117,32 @@ streamlit run test.py
 ## Project Structure
 
 ```
-nba-shot-dna/
-├── test.py              # Main Streamlit application
-├── logo.png             # Application logo
-├── requirements.txt     # Python dependencies
-├── README.md            # This file
-└── cache/               # Cached API responses
+Euro_stepper_analyst/
+├── app.py                    # Main Streamlit application entry point
+├── config.py                 # Configuration settings and constants
+├── logo.png                  # Application logo
+├── requirements.txt          # Python dependencies
+├── pyproject.toml            # Project metadata
+├── README.md                 # This file
+│
+├── data/                     # Data layer
+│   ├── __init__.py
+│   ├── api.py                # NBA API calls (cached)
+│   └── processing.py         # DataFrame transformations
+│
+├── charts/                   # Visualization layer
+│   ├── __init__.py
+│   ├── court.py              # Shot charts (scatter + hexbin)
+│   ├── comparisons.py        # Radar charts, zone comparisons
+│   └── trends.py             # Historical trends, leader visualizations
+│
+├── analysis/                 # Analytics layer
+│   ├── __init__.py
+│   └── similarity.py         # ML player similarity engine
+│
+└── utils/                    # Utility functions
+    ├── __init__.py
+    └── helpers.py            # Player name matching, normalization
 ```
 
 ## Metrics Explained
