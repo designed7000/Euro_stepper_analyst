@@ -384,7 +384,7 @@ def create_doppelganger_radar(player_name, match_name, similarity_pct,
                 rotation=90,
                 direction='clockwise'
             ),
-            bgcolor='rgba(248,248,248,0.8)'
+            bgcolor='rgba(255, 253, 248, 0.9)'
         ),
         showlegend=True,
         legend=dict(
@@ -395,12 +395,12 @@ def create_doppelganger_radar(player_name, match_name, similarity_pct,
             x=0.5,
             font=dict(size=13)
         ),
-        height=480,
+        height=420,
         title=dict(
-            text=f"Style Profile: {player_name} vs {match_name}<br><sup>Similarity: {similarity_pct}</sup>",
+            text=f"{player_name} vs {match_name}<br><sup>Similarity: {similarity_pct}</sup>",
             font=dict(size=15)
         ),
-        margin=dict(t=80, b=60, l=60, r=60)
+        margin=dict(t=70, b=60, l=50, r=50)
     )
     
     return doppel_radar

@@ -35,6 +35,10 @@ from charts.trends import (
 from analysis.similarity import (
     build_similarity_model, find_similar_players, get_player_style_values
 )
+from charts.similarity import (
+    create_similarity_bar_chart, create_stat_comparison_bars,
+    create_style_profile_chart, create_percentile_chart
+)
 
 
 # --- APP CONFIGURATION ---
@@ -64,12 +68,11 @@ def get_historical_metrics(player_id, seasons, clutch):
 
 
 # --- MAIN DASHBOARD INTERFACE ---
-st.title("NBA Player DNA: Spatial Efficiency Engine")
 
 # Sidebar for Inputs
 with st.sidebar:
     # Logo at the top
-    st.image("logo.png", use_container_width=True)
+    st.image("images/logo.png", use_container_width=True)
     
     st.header("Analyst Controls")
     
@@ -114,25 +117,43 @@ with st.sidebar:
 try:
     # --- WELCOME PAGE (no mode selected) ---
     if not show_leaders and not show_mvp_tracker and not show_player_analysis and not show_doppelganger:
-        st.markdown("""        
-        <div style="text-align: center; padding: 100px 20px;">
-            <h1 style="font-size: 3em; margin-bottom: 10px;">🏀 NBA Player DNA</h1>
-            <h2 style="font-size: 1.5em; color: #888; font-weight: normal;">Spatial Efficiency Engine</h2>
-            <p style="font-size: 1.2em; color: #aaa; margin-top: 40px;">
-                Select an option from the sidebar to begin your analysis.
-            </p>
-            <p style="font-size: 2em; color: #666; margin-top: 20px;">
-                 <b>League Leaders</b> - View top performers by position<br>
-                 <b>MVP Ladder</b> - DNA Production Index rankings<br>
-                 <b>Player Analysis</b> - Deep dive into shot charts<br>
-                 <b>Similar Players</b> - ML-powered player matching
-            </p>
+        
+        # Load and encode banner image for CSS background
+        import base64
+        with open("images/banner.jpg", "rb") as f:
+            banner_base64 = base64.b64encode(f.read()).decode()
+        
+        # Welcome content with background image using img tag
+        st.markdown(f"""
+        <div style="position: relative; text-align: center; padding: 20px 20px 100px 20px; min-height: 500px;">
+            <img src="data:image/jpeg;base64,{banner_base64}" 
+                 style="position: absolute; top: 80px; left: 0; width: 100%; height: calc(100% - 80px); 
+                        object-fit: cover; object-position: center center; opacity: 0.4; 
+                        mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%), linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 90%, rgba(0,0,0,0) 100%);
+                        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%), linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 90%, rgba(0,0,0,0) 100%);
+                        mask-composite: intersect;
+                        -webkit-mask-composite: source-in;
+                        pointer-events: none; z-index: 0;" />
+            <div style="position: relative; z-index: 1;">
+                <h1 style="font-size: 3em; margin-bottom: 10px;">🏀 NBA Player DNA</h1>
+                <h2 style="font-size: 1.5em; font-weight: normal;">Spatial Efficiency Engine</h2>
+                <p style="font-size: 1.2em; margin-top: 40px;">
+                    Select an option from the sidebar to begin your analysis.
+                </p>
+                <p style="font-size: 1.1em; margin-top: 50px; line-height: 2.2;">
+                    <b>League Leaders</b> - View top performers by position<br>
+                    <b>MVP Ladder</b> - DNA Production Index rankings<br>
+                    <b>Player Analysis</b> - Deep dive into shot charts<br>
+                    <b>Similar Players</b> - ML-powered player matching
+                </p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
         st.stop()
     
     # --- LEAGUE LEADERS MODE ---
     if show_leaders:
+        st.image("images/league_leaders.png", width=80)
         st.subheader("League Leaders by Position")
         
         leader_tab1, leader_tab2, leader_tab3 = st.tabs(["Scoring Impact", "Playmaking", "Two-Way Impact"])
@@ -239,6 +260,7 @@ try:
     
     # --- MVP TRACKER MODE ---
     if show_mvp_tracker:
+        st.image("images/mvp_ladder.png", width=80)
         st.subheader("🏆 MVP Ladder - DNA Production Index")
         st.caption("Scarcity-weighted statistics × team success = player value")
         
@@ -399,6 +421,115 @@ try:
         
         df_b = process_player_data(df_b, league_avg_df)
         metrics_b = calculate_player_metrics(df_b)
+    
+    # --- DOPPELGÄNGER FINDER (FIRST) ---
+    if show_doppelganger:
+        st.image("images/similar_players.png", width=80)
+        st.subheader("Statistical Doppelgangers")
+        st.caption(f"Finding players with similar playing styles to {player_name_a}")
+        
+        with st.spinner("Building similarity model..."):
+            try:
+                league_stats = get_advanced_stats(season)
+                
+                if league_stats.empty:
+                    st.warning("Could not load league stats for this season.")
+                else:
+                    nn_model, scaler, feature_cols = build_similarity_model(league_stats)
+                    
+                    similar_players, selected_player_data, error = find_similar_players(
+                        player_name_a, league_stats, nn_model, scaler, feature_cols
+                    )
+                    
+                    if error:
+                        st.warning(f"{error}. Player may not have enough games this season.")
+                    elif similar_players:
+                        # Get top match data for charts
+                        top_match_idx = similar_players[0]['_idx']
+                        top_match_data = league_stats.iloc[top_match_idx]
+                        top_match_name = top_match_data['PLAYER_NAME']
+                        
+                        # Get top 3 matches for style profile
+                        top_matches_data = [league_stats.iloc[p['_idx']] for p in similar_players[:3]]
+                        
+                        # --- SIMILARITY SCORES BAR CHART ---
+                        st.markdown("#### Match Rankings")
+                        sim_bar_fig = create_similarity_bar_chart(similar_players, player_name_a)
+                        st.plotly_chart(sim_bar_fig, use_container_width=True)
+                        
+                        # --- TWO COLUMN LAYOUT ---
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            # Percentile Rankings
+                            st.markdown("#### League Percentile Rankings")
+                            pct_fig = create_percentile_chart(selected_player_data, league_stats, player_name_a)
+                            st.plotly_chart(pct_fig, use_container_width=True)
+                        
+                        with col2:
+                            # Per Game Stats Comparison
+                            st.markdown("#### Box Score Comparison")
+                            stats_fig = create_stat_comparison_bars(selected_player_data, top_matches_data, league_stats)
+                            st.plotly_chart(stats_fig, use_container_width=True)
+                        
+                        # --- STYLE PROFILE COMPARISON ---
+                        st.markdown("#### Playing Style DNA")
+                        style_fig = create_style_profile_chart(selected_player_data, top_matches_data, player_name_a)
+                        st.plotly_chart(style_fig, use_container_width=True)
+                        
+                        # --- RADAR CHART ---
+                        st.markdown("#### Detailed Style Comparison")
+                        selected_vals = get_player_style_values(selected_player_data)
+                        match_vals = get_player_style_values(top_match_data)
+                        
+                        doppel_radar = create_doppelganger_radar(
+                            player_name_a, top_match_name, similar_players[0]['Similarity'],
+                            selected_vals, match_vals
+                        )
+                        st.plotly_chart(doppel_radar, use_container_width=True)
+                        
+                        # --- DATA TABLE ---
+                        with st.expander("📊 View Full Match Data"):
+                            st.markdown(f"**Top 5 players most similar to {player_name_a}:**")
+                            display_df = pd.DataFrame(similar_players)[['Rank', 'Player', 'Team', 'Similarity', 'USG%', 'TS%', '3P Rate']]
+                            st.dataframe(display_df, use_container_width=True, hide_index=True)
+                        
+                        with st.expander("📖 About the Similarity Model"):
+                            st.markdown("""
+                            **How it works:**
+                            
+                            The Doppelgänger Finder uses a **K-Nearest Neighbors** algorithm to find players with similar "style vectors."
+                            
+                            **Features used for matching:**
+                            | Metric | What it measures |
+                            |--------|------------------|
+                            | **Usage Rate (USG%)** | How often the player uses possessions |
+                            | **True Shooting (TS%)** | Overall scoring efficiency |
+                            | **Assist Rate (AST%)** | Percentage of teammate FGs assisted |
+                            | **Rebound Rate (REB%)** | Percentage of available rebounds grabbed |
+                            | **Pace** | Team's possessions per 48 minutes |
+                            | **3-Point Rate (3P_AR)** | Percentage of shots from 3-point range |
+                            
+                            *All features are normalized before comparison so no single stat dominates.*
+                            
+                            **Filters applied:** Only players with 15+ games and 10+ minutes per game are included.
+                            """)
+                    else:
+                        st.info("No similar players found.")
+            except Exception as e:
+                st.error(f"Error loading similarity data: {str(e)}")
+    
+    # Stop here if only doppelganger mode
+    if not show_player_analysis:
+        st.stop()
+    
+    # --- PLAYER ANALYSIS HEADER ---
+    st.markdown("---")
+    st.image("images/player_analysis.png", width=80)
+    if compare_mode:
+        st.subheader(f"{player_name_a} vs {player_name_b}")
+    else:
+        st.subheader(f"{player_name_a}")
     
     # Show clutch indicator
     if clutch_only:
@@ -638,74 +769,6 @@ try:
         freq_fig = create_single_player_zone_chart(player_stats_df, league_zone_dist, player_name_a)
         st.plotly_chart(freq_fig, use_container_width=True)
         st.caption("**Reading the chart**: Bar height = shot frequency from zone | Inside % = shooting accuracy (FG%) | Up/Down arrows = difference vs league")
-    
-    # --- DOPPELGÄNGER FINDER ---
-    if show_doppelganger:
-        st.markdown("---")
-        st.subheader("Statistical Doppelgangers")
-        st.caption("Finding players with similar playing styles using machine learning")
-        
-        with st.spinner("Building similarity model..."):
-            try:
-                league_stats = get_advanced_stats(season)
-                
-                if league_stats.empty:
-                    st.warning("Could not load league stats for this season.")
-                else:
-                    nn_model, scaler, feature_cols = build_similarity_model(league_stats)
-                    
-                    similar_players, selected_player_data, error = find_similar_players(
-                        player_name_a, league_stats, nn_model, scaler, feature_cols
-                    )
-                    
-                    if error:
-                        st.warning(f"{error}. Player may not have enough games this season.")
-                    elif similar_players:
-                        st.markdown(f"**Top 5 players most similar to {player_name_a}:**")
-                        
-                        display_df = pd.DataFrame(similar_players)[['Rank', 'Player', 'Team', 'Similarity', 'USG%', 'TS%', '3P Rate']]
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
-                        
-                        # Radar Chart
-                        st.markdown("#### Style Comparison: Selected Player vs Top Match")
-                        
-                        top_match_idx = similar_players[0]['_idx']
-                        top_match_data = league_stats.iloc[top_match_idx]
-                        top_match_name = top_match_data['PLAYER_NAME']
-                        
-                        selected_vals = get_player_style_values(selected_player_data)
-                        match_vals = get_player_style_values(top_match_data)
-                        
-                        doppel_radar = create_doppelganger_radar(
-                            player_name_a, top_match_name, similar_players[0]['Similarity'],
-                            selected_vals, match_vals
-                        )
-                        st.plotly_chart(doppel_radar, use_container_width=True)
-                        
-                        with st.expander("📖 About the Similarity Model"):
-                            st.markdown("""
-                            **How it works:**
-                            
-                            The Doppelgänger Finder uses a **K-Nearest Neighbors** algorithm to find players with similar "style vectors."
-                            
-                            **Features used for matching:**
-                            | Metric | What it measures |
-                            |--------|-----------------|
-                            | **Usage Rate (USG%)** | How often the player uses possessions |
-                            | **True Shooting (TS%)** | Overall scoring efficiency |
-                            | **Assist Rate (AST%)** | Percentage of teammate FGs assisted |
-                            | **Rebound Rate (REB%)** | Percentage of available rebounds grabbed |
-                            | **Pace** | Team's possessions per 48 minutes |
-                            | **3-Point Rate (3P_AR)** | Percentage of shots from 3-point range |
-                            
-                            *All features are normalized before comparison so no single stat dominates.*
-                            
-                            **Filters applied:** Only players with 15+ games and 10+ minutes per game are included.
-                            """)
-                    else:
-                        st.info("No similar players found.")
-            except Exception as e:
-                st.error(f"Error loading similarity data: {str(e)}")
     
     # --- RAW DATA INSPECTOR ---
     with st.expander("Inspect Raw Possession Data"):

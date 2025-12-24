@@ -87,7 +87,7 @@ def get_player_style_values(player_data):
         player_data: Series/row with player stats
         
     Returns:
-        list: [USG, TS, AST, REB, PACE, 3P_RATE]
+        list: [USG, TS, AST, REB, PACE, 3P_RATE] - all as display percentages
     """
     import pandas as pd
     
@@ -97,10 +97,10 @@ def get_player_style_values(player_data):
         return float(val)
     
     return [
-        safe_val(player_data['USG_PCT']),
-        safe_val(player_data['TS_PCT']),
-        safe_val(player_data['AST_PCT']),
-        safe_val(player_data['REB_PCT']),
-        safe_val(player_data['PACE']),
-        safe_val(player_data['3P_AR']) * 100  # Convert decimal to percentage
+        safe_val(player_data['USG_PCT']) * 100,  # Convert to percentage
+        safe_val(player_data['TS_PCT']) * 100,   # Convert to percentage
+        safe_val(player_data['AST_PCT']) * 100,  # Convert to percentage
+        safe_val(player_data['REB_PCT']) * 100,  # Convert to percentage
+        safe_val(player_data['PACE']),            # Already in correct format
+        safe_val(player_data['3P_AR']) * 100     # Convert decimal to percentage
     ]
