@@ -14,12 +14,14 @@ from config import (
 )
 from utils.helpers import get_player_id
 from data.api import (
-    get_player_shots, get_league_averages, get_advanced_stats, get_league_leaders
+    get_player_shots, get_league_averages, get_advanced_stats, get_league_leaders, get_standings
 )
 from data.processing import (
     process_player_data, calculate_player_metrics, calculate_zone_stats,
     add_zone_groups, get_top_players_by_position_smart
 )
+from analysis.awards import AwardTracker
+from charts.awards import create_mvp_value_breakdown_chart, create_winning_vs_stats_scatter
 from charts.court import create_shot_chart, create_hexbin_chart
 from charts.comparisons import (
     create_radar_comparison, create_zone_frequency_comparison,
@@ -76,17 +78,23 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # --- LEAGUE LEADERS (checked by default) ---
+    # --- LEAGUE LEADERS ---
     st.subheader("League Leaders")
-    show_leaders = st.checkbox("Show Leaders by Position", value=True,
+    show_leaders = st.checkbox("Show Leaders by Position", value=False,
                                help="View top performers across positions")
     
-    st.caption("To study players, un-check League Leaders")
+    # --- MVP TRACKER ---
+    st.subheader("🏆 Awards Tracker")
+    show_mvp_tracker = st.checkbox("MVP Ranking Projection", value=False,
+                                    help="DNA Production Index MVP rankings")
     
     st.markdown("---")
     
     # --- PLAYER ANALYSIS ---
     st.subheader("Player Analysis")
+    show_player_analysis = st.checkbox("Analyze Player", value=False,
+                                        help="Shot charts and efficiency analysis")
+    
     player_name_a = st.text_input("Player A Name", "Stephen Curry")
     
     compare_mode = st.checkbox("Compare Players", value=False)
@@ -104,6 +112,25 @@ with st.sidebar:
 
 # --- ANALYTICS ENGINE ---
 try:
+    # --- WELCOME PAGE (no mode selected) ---
+    if not show_leaders and not show_mvp_tracker and not show_player_analysis and not show_doppelganger:
+        st.markdown("""        
+        <div style="text-align: center; padding: 100px 20px;">
+            <h1 style="font-size: 3em; margin-bottom: 10px;">🏀 NBA Player DNA</h1>
+            <h2 style="font-size: 1.5em; color: #888; font-weight: normal;">Spatial Efficiency Engine</h2>
+            <p style="font-size: 1.2em; color: #aaa; margin-top: 40px;">
+                Select an option from the sidebar to begin your analysis.
+            </p>
+            <p style="font-size: 2em; color: #666; margin-top: 20px;">
+                 <b>League Leaders</b> - View top performers by position<br>
+                 <b>MVP Ladder</b> - DNA Production Index rankings<br>
+                 <b>Player Analysis</b> - Deep dive into shot charts<br>
+                 <b>Similar Players</b> - ML-powered player matching
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.stop()
+    
     # --- LEAGUE LEADERS MODE ---
     if show_leaders:
         st.subheader("League Leaders by Position")
@@ -210,7 +237,122 @@ try:
         
         st.stop()
     
+    # --- MVP TRACKER MODE ---
+    if show_mvp_tracker:
+        st.subheader("🏆 MVP Ladder - DNA Production Index")
+        st.caption("Scarcity-weighted statistics × team success = player value")
+        
+        with st.spinner("Calculating MVP ladder..."):
+            try:
+                # Get data
+                leaders_df = get_league_leaders(season)
+                standings_df = get_standings(season)
+                
+                if leaders_df.empty:
+                    st.warning("Could not load player stats for this season.")
+                    st.stop()
+                
+                if standings_df.empty:
+                    st.warning("Could not load standings for this season.")
+                    st.stop()
+                
+                # Calculate MVP ladder
+                tracker = AwardTracker(leaders_df, standings_df)
+                mvp_ladder = tracker.calculate_mvp_ladder(top_n=20)  # Get 20, display based on selector
+                
+                if mvp_ladder.empty:
+                    st.warning("Could not calculate MVP ladder.")
+                    st.stop()
+                
+                # --- MVP LADDER TABLE ---
+                # Use container pattern like leaders section
+                mvp_table_container = st.container()
+                
+                # Selector below the table
+                _, sel_col, _ = st.columns([2, 1, 2])
+                with sel_col:
+                    mvp_top_n = st.selectbox("Show", ["Top 5", "Top 10", "Top 20"], index=1, 
+                                              label_visibility="collapsed", key="mvp_top_n")
+                    mvp_top_n = int(mvp_top_n.split()[1])
+                
+                with mvp_table_container:
+                    st.markdown(f"##### Top {mvp_top_n} MVP Candidates")
+                    
+                    # Format display columns (include Record)
+                    display_cols = ['Rank', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'MVP_SCORE', 'RAW_VALUE', 'RECORD', 'WIN_PCT']
+                    mvp_display = mvp_ladder[display_cols].head(mvp_top_n).copy()
+                    mvp_display.columns = ['Rank', 'Player', 'Team', 'MVP Score', 'Raw Value', 'Record', 'Win %']
+                    mvp_display['MVP Score'] = mvp_display['MVP Score'].apply(lambda x: f"{x:.1f}")
+                    mvp_display['Raw Value'] = mvp_display['Raw Value'].apply(lambda x: f"{x:.1f}")
+                    mvp_display['Win %'] = mvp_display['Win %'].apply(lambda x: f"{x:.1%}")
+                    
+                    # Dynamic table height based on selection
+                    table_height = 35 + (mvp_top_n * 35)
+                    st.dataframe(mvp_display, use_container_width=True, hide_index=True, height=table_height)
+                
+                st.caption("**MVP Score** = Raw Production Value × √(Team Win %) | Higher score = stronger MVP case")
+                
+                # --- VISUALIZATIONS ---
+                st.markdown("---")
+                st.subheader("DNA Production Analysis")
+                
+                viz_col1, viz_col2 = st.columns(2)
+                
+                with viz_col1:
+                    fig_breakdown = create_mvp_value_breakdown_chart(mvp_ladder.head(10))
+                    if fig_breakdown:
+                        st.plotly_chart(fig_breakdown, use_container_width=True)
+                        st.caption("Stacked bars show contribution from each stat category")
+                
+                with viz_col2:
+                    fig_scatter = create_winning_vs_stats_scatter(mvp_ladder.head(15))
+                    if fig_scatter:
+                        st.plotly_chart(fig_scatter, use_container_width=True)
+                        st.caption("Top-right quadrant = elite production + winning")
+                
+                # --- METHODOLOGY EXPANDER ---
+                with st.expander("📖 About DNA Production Index"):
+                    st.markdown("""
+                    **How the MVP Ladder is calculated:**
+                    
+                    The DNA Production Index uses **scarcity-weighted statistics** to measure player value:
+                    
+                    **Step 1: Calculate Scarcity Weights**
+                    | Stat | Formula |
+                    |------|---------|
+                    | Points | Total League Points / League PTS Sum |
+                    | Assists | Total League Points / League AST Sum |
+                    | Rebounds | Total League Points / League REB Sum |
+                    | Steals | Total League Points / League STL Sum |
+                    | Blocks | Total League Points / League BLK Sum |
+                    
+                    *Rare stats (like blocks) get higher weights because they're harder to accumulate.*
+                    
+                    **Step 2: Calculate Raw Production Value**
+                    ```
+                    Raw Value = (PTS × w_pts) + (AST × w_ast) + (REB × w_reb) + (STL × w_stl) + (BLK × w_blk)
+                    ```
+                    
+                    **Step 3: Apply Team Success Modifier**
+                    ```
+                    MVP Score = Raw Value × √(Team Win Percentage)
+                    ```
+                    
+                    *This rewards players on winning teams while not punishing those on mid-tier teams too heavily.*
+                    
+                    **Filters Applied:**
+                    - Minimum 15 games played
+                    - Minimum 20 minutes per game
+                    """)
+                
+            except Exception as e:
+                st.error(f"Error calculating MVP ladder: {str(e)}")
+        
+        st.stop()
+    
     # --- PLAYER ANALYSIS MODE ---
+    if not show_player_analysis and not show_doppelganger:
+        st.stop()
     
     # Get Player A data with fuzzy matching
     p_id_a, corrected_name_a, match_msg_a = get_player_id(player_name_a)

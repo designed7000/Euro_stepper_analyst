@@ -5,7 +5,7 @@ All API calls are cached using Streamlit's cache_data decorator.
 
 import time
 import streamlit as st
-from nba_api.stats.endpoints import shotchartdetail, leaguedashplayerstats
+from nba_api.stats.endpoints import shotchartdetail, leaguedashplayerstats, leaguestandings
 
 from utils.helpers import estimate_position
 from config import MIN_GAMES, MIN_MINUTES, MIN_MINUTES_LEADERS
@@ -171,3 +171,72 @@ def get_league_leaders(season):
     df = df[df['POSITION_GROUP'].notna()]
     
     return df
+
+
+@st.cache_data
+def get_standings(season):
+    """Fetch league standings with team records.
+    
+    Args:
+        season: Season string (e.g., '2024-25')
+        
+    Returns:
+        DataFrame with team standings including win percentage
+    """
+    standings = leaguestandings.LeagueStandings(
+        season=season,
+        league_id='00'
+    )
+    df = standings.get_data_frames()[0]
+    
+    # Select relevant columns and rename for clarity
+    cols_to_keep = ['TeamID', 'TeamCity', 'TeamName', 'TeamSlug', 'Conference', 
+                    'WINS', 'LOSSES', 'WinPCT', 'HOME', 'ROAD']
+    
+    # Check which columns exist (API may vary)
+    available_cols = [c for c in cols_to_keep if c in df.columns]
+    standings_df = df[available_cols].copy()
+    
+    # Create full team name for matching
+    if 'TeamCity' in standings_df.columns and 'TeamName' in standings_df.columns:
+        standings_df['TEAM_FULL'] = standings_df['TeamCity'] + ' ' + standings_df['TeamName']
+    
+    # Rename for consistency
+    if 'TeamSlug' in standings_df.columns:
+        standings_df.rename(columns={'TeamSlug': 'TEAM_ABBREVIATION'}, inplace=True)
+    
+    return standings_df
+
+
+@st.cache_data
+def get_mvp_stats(season):
+    """Fetch player stats specifically for MVP calculations (totals).
+    
+    Args:
+        season: Season string (e.g., '2024-25')
+        
+    Returns:
+        DataFrame with player totals for MVP scoring
+    """
+    # Get totals for scarcity calculation
+    totals_stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        measure_type_detailed_defense='Base',
+        per_mode_detailed='Totals'
+    )
+    totals_df = totals_stats.get_data_frames()[0]
+    time.sleep(0.4)
+    
+    # Get per-game stats for display
+    pergame_stats = leaguedashplayerstats.LeagueDashPlayerStats(
+        season=season,
+        measure_type_detailed_defense='Base',
+        per_mode_detailed='PerGame'
+    )
+    pergame_df = pergame_stats.get_data_frames()[0]
+    
+    # Filter for meaningful sample size
+    totals_df = totals_df[(totals_df['GP'] >= MIN_GAMES) & (totals_df['MIN'] / totals_df['GP'] >= MIN_MINUTES)]
+    pergame_df = pergame_df[(pergame_df['GP'] >= MIN_GAMES) & (pergame_df['MIN'] >= MIN_MINUTES)]
+    
+    return totals_df, pergame_df
