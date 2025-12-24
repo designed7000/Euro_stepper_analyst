@@ -122,7 +122,6 @@ Euro_stepper_analyst/
 ├── config.py                 # Configuration settings and constants
 ├── logo.png                  # Application logo
 ├── requirements.txt          # Python dependencies
-├── pyproject.toml            # Project metadata
 ├── README.md                 # This file
 │
 ├── data/                     # Data layer
