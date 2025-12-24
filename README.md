@@ -107,16 +107,6 @@ streamlit run app.py
 
 The app will open at `http://localhost:8501`
 
-### Deploy to Streamlit Cloud
-
-1. Fork this repository
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your GitHub account
-4. Select `Euro_stepper_analyst` repo and `app.py`
-5. Deploy!
-
----
-
 ## 📖 Usage
 
 ### Getting Started
@@ -244,7 +234,7 @@ This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for d
 ---
 
 <p align="center">
-  <sub>Built with ❤️ for basketball analytics</sub>
+  <sub>Built for the ❤️ of the game</sub>
 </p>
 
 <p align="center">
