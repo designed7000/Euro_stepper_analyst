@@ -79,38 +79,197 @@ with st.sidebar:
     # Season selector at top
     season = st.selectbox("Season", SEASONS)
     
+    # Initialize session state for player analysis flow
+    if 'player_analysis_active' not in st.session_state:
+        st.session_state.player_analysis_active = False
+    if 'player_a_entered' not in st.session_state:
+        st.session_state.player_a_entered = False
+    if 'player_a_name' not in st.session_state:
+        st.session_state.player_a_name = ""
+    if 'player_b_name' not in st.session_state:
+        st.session_state.player_b_name = ""
+    if 'compare_mode' not in st.session_state:
+        st.session_state.compare_mode = False
+    if 'find_similar_mode' not in st.session_state:
+        st.session_state.find_similar_mode = False
+    if 'clutch_only' not in st.session_state:
+        st.session_state.clutch_only = False
+    if 'last_season' not in st.session_state:
+        st.session_state.last_season = season
+    
+    # Reset if season changed
+    if st.session_state.last_season != season:
+        st.session_state.player_analysis_active = False
+        st.session_state.player_a_entered = False
+        st.session_state.player_a_name = ""
+        st.session_state.player_b_name = ""
+        st.session_state.compare_mode = False
+        st.session_state.find_similar_mode = False
+        st.session_state.clutch_only = False
+        st.session_state.last_season = season
+    
     st.markdown("---")
+    
+    # Custom CSS for transparent buttons with hover effect
+    st.markdown("""
+    <style>
+    div[data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: transparent !important;
+        border: 1px solid transparent !important;
+        transition: all 0.3s ease !important;
+    }
+    div[data-testid="stSidebar"] button[kind="secondary"]:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 75, 75, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     
     # --- LEAGUE LEADERS ---
     st.subheader("League Leaders")
-    show_leaders = st.checkbox("Show Leaders by Position", value=False,
-                               help="View top performers across positions")
+    show_leaders = st.button("Show Leaders by Position", use_container_width=True,
+                              help="View top performers across positions")
+    
+    # Reset player analysis when navigating to leaders
+    if show_leaders:
+        st.session_state.player_analysis_active = False
+        st.session_state.player_a_entered = False
+        st.session_state.player_a_name = ""
+        st.session_state.player_b_name = ""
+        st.session_state.compare_mode = False
+        st.session_state.find_similar_mode = False
+        st.session_state.clutch_only = False
     
     # --- MVP TRACKER ---
     st.subheader("🏆 Awards Tracker")
-    show_mvp_tracker = st.checkbox("MVP Ranking Projection", value=False,
-                                    help="DNA Production Index MVP rankings")
+    show_mvp_tracker = st.button("MVP Ranking Projection", use_container_width=True,
+                                  help="DNA Production Index MVP rankings")
+    
+    # Reset player analysis when navigating to MVP
+    if show_mvp_tracker:
+        st.session_state.player_analysis_active = False
+        st.session_state.player_a_entered = False
+        st.session_state.player_a_name = ""
+        st.session_state.player_b_name = ""
+        st.session_state.compare_mode = False
+        st.session_state.find_similar_mode = False
+        st.session_state.clutch_only = False
     
     st.markdown("---")
     
     # --- PLAYER ANALYSIS ---
     st.subheader("Player Analysis")
-    show_player_analysis = st.checkbox("Analyze Player", value=False,
-                                        help="Shot charts and efficiency analysis")
     
-    player_name_a = st.text_input("Player A Name", "Stephen Curry")
+    # Step 1: Show "Analyze Player" button if not active
+    if not st.session_state.player_analysis_active:
+        if st.button("Analyze Player", use_container_width=True, 
+                     help="Shot charts and efficiency analysis"):
+            st.session_state.player_analysis_active = True
+            st.rerun()
     
-    compare_mode = st.checkbox("Compare Players", value=False)
-    if compare_mode:
-        player_name_b = st.text_input("Player B Name", "LeBron James")
+    # Step 2: Show Player A input if active
+    if st.session_state.player_analysis_active:
+        # Add reset button
+        if st.button("✕ Reset", use_container_width=True, help="Start over"):
+            st.session_state.player_analysis_active = False
+            st.session_state.player_a_entered = False
+            st.session_state.player_a_name = ""
+            st.session_state.player_b_name = ""
+            st.session_state.compare_mode = False
+            st.session_state.find_similar_mode = False
+            st.session_state.clutch_only = False
+            st.rerun()
+        
+        player_name_a = st.text_input("Player A Name", 
+                                       value=st.session_state.player_a_name,
+                                       placeholder="Enter player name...",
+                                       key="player_a_input")
+        
+        # Step 3: Show options after player name is entered
+        if player_name_a and player_name_a != st.session_state.player_a_name:
+            st.session_state.player_a_name = player_name_a
+            st.session_state.player_a_entered = True
+        
+        compare_mode = False
+        find_similar_mode = False
+        player_name_b = None
+        clutch_only = False
+        
+        if st.session_state.player_a_entered and st.session_state.player_a_name:
+            # Clutch Time - independent checkbox
+            clutch_only = st.checkbox("Clutch Time Only", 
+                                      value=st.session_state.clutch_only,
+                                      key="clutch_check",
+                                      help="Last 5 min, score within 5 pts")
+            st.session_state.clutch_only = clutch_only
+            
+            # Add separator
+            st.markdown("**Choose one:**")
+            
+            # Compare Players checkbox
+            compare_mode = st.checkbox("Compare Players", 
+                                       value=st.session_state.compare_mode,
+                                       key="compare_check")
+            
+            # If Compare is checked, uncheck Similar (auto-switch)
+            if compare_mode and st.session_state.find_similar_mode:
+                st.session_state.find_similar_mode = False
+                st.session_state.player_b_name = ""
+                st.session_state.compare_mode = compare_mode
+                st.rerun()
+            
+            st.session_state.compare_mode = compare_mode
+            
+            # Find Similar Players checkbox
+            find_similar_mode = st.checkbox("Find Similar Players",
+                                           value=st.session_state.find_similar_mode,
+                                           key="similar_check",
+                                           help="ML-powered player similarity")
+            
+            # If Similar is checked, uncheck Compare (auto-switch)
+            if find_similar_mode and st.session_state.compare_mode:
+                st.session_state.compare_mode = False
+                st.session_state.player_b_name = ""
+                st.session_state.find_similar_mode = find_similar_mode
+                st.rerun()
+            
+            st.session_state.find_similar_mode = find_similar_mode
+            
+            # Step 4: Show Player B input only if compare is checked
+            if st.session_state.compare_mode:
+                player_name_b = st.text_input("Player B Name", 
+                                               value=st.session_state.player_b_name,
+                                               placeholder="Enter second player...",
+                                               key="player_b_input")
+                if player_name_b:
+                    st.session_state.player_b_name = player_name_b
+            else:
+                # Clear Player B if Compare is unchecked
+                if st.session_state.player_b_name:
+                    st.session_state.player_b_name = ""
+        
+        # Use stored names and modes for consistency
+        player_name_a = st.session_state.player_a_name
+        compare_mode = st.session_state.compare_mode
+        find_similar_mode = st.session_state.find_similar_mode
+        clutch_only = st.session_state.clutch_only
+        
+        if compare_mode and st.session_state.player_b_name:
+            player_name_b = st.session_state.player_b_name
+    else:
+        # These need to be defined even when not in player analysis mode
+        player_name_a = None
+        compare_mode = False
+        find_similar_mode = False
+        player_name_b = None
+        clutch_only = False
     
-    st.subheader("Game Context")
-    clutch_only = st.checkbox("Clutch Time Only", value=False, 
-                               help="Last 5 min, score within 5 pts")
+    # Set show_player_analysis based on state
+    show_player_analysis = st.session_state.player_analysis_active and st.session_state.player_a_entered
     
-    st.subheader("Player Discovery")
-    show_doppelganger = st.checkbox("Find Similar Players", value=False,
-                                     help="ML-powered player similarity engine")
+    # Set show_doppelganger as alias for find_similar_mode
+    show_doppelganger = find_similar_mode if st.session_state.player_analysis_active else False
 
 
 # --- ANALYTICS ENGINE ---
@@ -514,13 +673,33 @@ try:
                             
                             **Filters applied:** Only players with 15+ games and 10+ minutes per game are included.
                             """)
+                        
+                        # Auto-set comparison mode for the found similar player
+                        compare_mode = True
+                        player_name_b = top_match_name
+                        
+                        # Load Player B data (top match) for comparison
+                        with st.spinner(f"Loading data for {player_name_b}..."):
+                            p_id_b = get_player_id(player_name_b)
+                            if p_id_b is None:
+                                st.warning(f"Could not find player ID for {player_name_b}")
+                                st.stop()
+                            
+                            df_b, _ = get_player_shots(p_id_b, season, clutch_only)
+                        
+                        if df_b.empty:
+                            st.warning(f"No shot data found for {player_name_b} in {season}.")
+                            st.stop()
+                        
+                        df_b = process_player_data(df_b, league_avg_df)
+                        metrics_b = calculate_player_metrics(df_b)
                     else:
                         st.info("No similar players found.")
             except Exception as e:
                 st.error(f"Error loading similarity data: {str(e)}")
     
-    # Stop here if only doppelganger mode
-    if not show_player_analysis:
+    # Stop here if only doppelganger mode without comparison
+    if not show_player_analysis and not compare_mode:
         st.stop()
     
     # --- PLAYER ANALYSIS HEADER ---
