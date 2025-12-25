@@ -6,6 +6,7 @@ Main Streamlit application entry point.
 import streamlit as st
 import pandas as pd
 import numpy as np
+import datetime
 
 # Local imports
 from config import (
@@ -32,12 +33,13 @@ from charts.trends import (
     create_scoring_efficiency_chart, create_playmaking_chart,
     create_twoway_quadrant_chart, create_top_scorers_bar
 )
-from analysis.similarity import (
-    build_similarity_model, find_similar_players, get_player_style_values
-)
+from utils.home_page import generate_quiz_question, get_fun_fact
 from charts.similarity import (
     create_similarity_bar_chart, create_stat_comparison_bars,
     create_style_profile_chart, create_percentile_chart
+)
+from analysis.similarity import (
+    build_similarity_model, find_similar_players, get_player_style_values
 )
 
 
@@ -71,10 +73,21 @@ def get_historical_metrics(player_id, seasons, clutch):
 
 # Sidebar for Inputs
 with st.sidebar:
-    # Logo at the top
-    st.image("images/logo.png", use_container_width=True)
+    # Logo at the top (static branding only)
+    st.image("images/logo.png", width=200)
+    st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
     
     st.header("Analyst Controls")
+    home_btn = st.button("Home Page", use_container_width=True, help="Return to the main view")
+    if home_btn:
+        st.session_state.player_analysis_active = False
+        st.session_state.player_a_entered = False
+        st.session_state.player_a_name = ""
+        st.session_state.player_b_name = ""
+        st.session_state.compare_mode = False
+        st.session_state.find_similar_mode = False
+        st.session_state.clutch_only = False
+        st.rerun()
     
     # Season selector at top
     season = st.selectbox("Season", SEASONS)
@@ -96,7 +109,7 @@ with st.sidebar:
         st.session_state.clutch_only = False
     if 'last_season' not in st.session_state:
         st.session_state.last_season = season
-    
+
     # Reset if season changed
     if st.session_state.last_season != season:
         st.session_state.player_analysis_active = False
@@ -282,32 +295,303 @@ try:
         with open("images/banner.jpg", "rb") as f:
             banner_base64 = base64.b64encode(f.read()).decode()
         
-        # Welcome content with background image using img tag
+        # Header with banner
         st.markdown(f"""
-        <div style="position: relative; text-align: center; padding: 20px 20px 100px 20px; min-height: 500px;">
+        <div style="position: relative; text-align: center; padding: 20px 20px 40px 20px;">
             <img src="data:image/jpeg;base64,{banner_base64}" 
-                 style="position: absolute; top: 80px; left: 0; width: 100%; height: calc(100% - 80px); 
-                        object-fit: cover; object-position: center center; opacity: 0.4; 
+                 style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+                        object-fit: cover; object-position: center center; opacity: 0.3; 
                         mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%), linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 90%, rgba(0,0,0,0) 100%);
                         -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 92%, rgba(0,0,0,0) 100%), linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 90%, rgba(0,0,0,0) 100%);
                         mask-composite: intersect;
                         -webkit-mask-composite: source-in;
                         pointer-events: none; z-index: 0;" />
             <div style="position: relative; z-index: 1;">
-                <h1 style="font-size: 3em; margin-bottom: 10px;">🏀 NBA Player DNA</h1>
+                <h1 style="font-size: 3em; margin-bottom: 10px;">NBA Player DNA</h1>
                 <h2 style="font-size: 1.5em; font-weight: normal;">Spatial Efficiency Engine</h2>
-                <p style="font-size: 1.2em; margin-top: 40px;">
-                    Select an option from the sidebar to begin your analysis.
-                </p>
-                <p style="font-size: 1.1em; margin-top: 50px; line-height: 2.2;">
-                    <b>League Leaders</b> - View top performers by position<br>
-                    <b>MVP Ladder</b> - DNA Production Index rankings<br>
-                    <b>Player Analysis</b> - Deep dive into shot charts<br>
-                    <b>Similar Players</b> - ML-powered player matching
-                </p>
             </div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # --- HIGHLIGHTS ROW ---
+        st.markdown("---")
+        st.subheader("Highlights Today")
+        col_quiz, col_hot, col_fun = st.columns(3)
+
+        # Quiz (compact, one question per day, persistent)
+        with col_quiz:
+            st.markdown("**Daily Quiz**")
+            st.caption("One question per day")
+            try:
+                # Persist today's quiz in session state
+                today_str = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+                if 'quiz_question' not in st.session_state or st.session_state.get('quiz_date') != today_str:
+                    league_stats = get_league_leaders(season)
+                    quiz = generate_quiz_question(league_stats, season)
+                    st.session_state.quiz_question = quiz
+                    st.session_state.quiz_date = today_str
+                    st.session_state.quiz_feedback = None
+                quiz = st.session_state.get('quiz_question')
+
+                if quiz:
+                    st.markdown(f"{quiz['question']}")
+                    selected_answer = st.radio(
+                        "Select an answer",
+                        quiz['options'],
+                        key="quiz_radio",
+                        label_visibility="collapsed"
+                    )
+                    if st.button("Check answer", key="quiz_submit", use_container_width=True):
+                        if selected_answer == quiz['correct_answer']:
+                            st.session_state.quiz_feedback = ("success", f"Correct! {quiz['explanation']}")
+                        else:
+                            st.session_state.quiz_feedback = ("error", f"Not quite. {quiz['explanation']}")
+                    feedback = st.session_state.get('quiz_feedback')
+                    if feedback:
+                        level, msg = feedback
+                        getattr(st, level)(msg)
+            except Exception:
+                st.info("Quiz loading... try again shortly.")
+
+        # Who's Hot placeholder (to be built later)
+        with col_hot:
+            st.markdown("**Who's Hot Right Now**")
+            st.caption("Coming soon: compact hot streaks and MVP movers")
+
+        # Fun Plot of the Week: Efficiency vs Volume - Who's Doing More With Less?
+        with col_fun:
+            st.markdown("**Fun Plot of the Week**")
+            st.caption("Top 30 Usage Players: Are they efficient?", 
+                      help="Usage Rate = % of possessions used by player. True Shooting % = overall shooting efficiency. 🟢 Above avg efficiency | 🔴 Below avg. Are high-volume scorers actually efficient?")
+            try:
+                import plotly.graph_objects as go
+                league_stats = get_league_leaders(season)
+                
+                if not league_stats.empty and 'TS_PCT' in league_stats.columns and 'USG_PCT' in league_stats.columns:
+                    # Get top 30 usage players (high volume scorers)
+                    plot_data = league_stats[['PLAYER_NAME', 'TS_PCT', 'USG_PCT', 'POSITION_GROUP', 'PTS']].copy()
+                    plot_data = plot_data.dropna(subset=['TS_PCT', 'USG_PCT'])
+                    plot_data = plot_data.nlargest(30, 'USG_PCT')
+                    
+                    if len(plot_data) >= 10:
+                        # League average TS% line
+                        avg_ts = league_stats['TS_PCT'].mean()
+                        
+                        # Color by efficiency: green = above avg, red = below avg
+                        colors = ['#00D26A' if ts >= avg_ts else '#FF6B6B' for ts in plot_data['TS_PCT']]
+                        
+                        # Create clean scatter
+                        fig = go.Figure()
+                        
+                        # Add average line first (so it's behind points)
+                        fig.add_hline(
+                            y=avg_ts,
+                            line_dash='dash',
+                            line_color='rgba(255, 255, 255, 0.4)',
+                            annotation_text=f'League Avg: {avg_ts:.1%}',
+                            annotation_position='top left',
+                            annotation_font_size=12,
+                            annotation_font_color='#aaa'
+                        )
+                        
+                        # Add scatter points
+                        fig.add_trace(go.Scatter(
+                            x=plot_data['USG_PCT'],
+                            y=plot_data['TS_PCT'],
+                            mode='markers+text',
+                            marker=dict(
+                                size=18,
+                                color=colors,
+                                line=dict(color='white', width=1.5),
+                                opacity=0.85
+                            ),
+                            text=plot_data['PLAYER_NAME'].apply(lambda x: x.split()[-1][:7]),  # Last name, truncated
+                            textposition='top center',
+                            textfont=dict(size=11, color='#ddd'),
+                            hovertemplate='<b>%{customdata[0]}</b><br>Usage: %{x:.1%}<br>TS%: %{y:.1%}<br>PPG: %{customdata[1]:.1f}<extra></extra>',
+                            customdata=list(zip(plot_data['PLAYER_NAME'], plot_data['PTS'])),
+                            showlegend=False
+                        ))
+                        
+                        fig.update_layout(
+                            title=dict(
+                                text='<b>Volume vs Efficiency</b><br><sup>🟢 Above Avg TS%  🔴 Below Avg TS%</sup>',
+                                font=dict(size=18)
+                            ),
+                            xaxis=dict(
+                                title=dict(text='Usage Rate %', font=dict(size=14)),
+                                tickformat='.0%',
+                                tickfont=dict(size=12),
+                                gridcolor='rgba(255,255,255,0.08)',
+                                range=[plot_data['USG_PCT'].min() - 0.02, plot_data['USG_PCT'].max() + 0.02]
+                            ),
+                            yaxis=dict(
+                                title=dict(text='True Shooting %', font=dict(size=14)),
+                                tickformat='.0%',
+                                tickfont=dict(size=12),
+                                gridcolor='rgba(255,255,255,0.08)',
+                                range=[plot_data['TS_PCT'].min() - 0.03, plot_data['TS_PCT'].max() + 0.03]
+                            ),
+                            height=500,
+                            margin=dict(l=70, r=30, t=80, b=60),
+                            template='plotly_dark',
+                            hovermode='closest'
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True, config=dict(displayModeBar=False))
+                    else:
+                        st.info("Not enough data for this season.")
+                else:
+                    st.info("Stats unavailable for this season.")
+            except Exception as e:
+                st.info(f"Fun plot loading... {str(e)}")
+            except Exception as e:
+                st.info(f"Fun plot loading... {str(e)}")
+
+        # --- SEASON AT A GLANCE ---
+        st.markdown("---")
+        st.subheader("Season at a Glance")
+        try:
+            with st.spinner("Loading season data..."):
+                leaders_df = get_league_leaders(season)
+                standings_df = get_standings(season)
+
+                # Calculate games played upfront
+                games_per_team = None
+                if not standings_df.empty:
+                    # API returns 'WINS' and 'LOSSES' (all caps)
+                    if 'WINS' in standings_df.columns and 'LOSSES' in standings_df.columns:
+                        games_per_team = (standings_df['WINS'] + standings_df['LOSSES']).mean()
+
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                with metric_col1:
+                    st.metric("Season", season)
+                with metric_col2:
+                    if games_per_team is not None:
+                        progress_pct = (games_per_team / 82) * 100
+                        st.metric("Season Progress", f"{progress_pct:.1f}%")
+                    else:
+                        st.metric("Season Progress", "N/A")
+
+                # Split into table and plot
+                table_col, plot_col = st.columns(2)
+
+                # Key leaders table
+                with table_col:
+                    st.markdown('<div style="padding-bottom: 100px;"></div>', unsafe_allow_html=True)
+                    if not leaders_df.empty:
+                        records = []
+                        def add_leader(label, col, fmt="{:.1f}"):
+                            if col in leaders_df.columns:
+                                p = leaders_df.nlargest(1, col).iloc[0]
+                                records.append({
+                                    "Metric": label,
+                                    "Player": p['PLAYER_NAME'],
+                                    "Team": p.get('TEAM_ABBREVIATION', ''),
+                                    "Value": fmt.format(p[col]) if isinstance(p[col], (int, float)) else p[col]
+                                })
+
+                        add_leader("Points", 'PTS')
+                        add_leader("Assists", 'AST')
+                        add_leader("Rebounds", 'REB')
+                        add_leader("True Shooting %", 'TS_PCT', "{:.1%}")
+
+                        if records:
+                            st.markdown("**Key Leaders**")
+                            st.dataframe(pd.DataFrame(records), use_container_width=True, hide_index=True)
+                        else:
+                            st.info("Leader stats unavailable.")
+                    else:
+                        st.info("Leader stats unavailable.")
+
+                # Plot: Win distribution histogram (league balance)
+                with plot_col:
+                    if not standings_df.empty:
+                        try:
+                            import plotly.graph_objects as go
+                            if 'WINS' in standings_df.columns:
+                                # Create win distribution ranges with granular bins
+                                wins = standings_df['WINS'].astype(float)
+                                max_wins = int(wins.max())
+                                
+                                # Create bins every 5 wins for better granularity
+                                bins = list(range(0, max_wins + 6, 5))
+                                if bins[-1] < max_wins:
+                                    bins.append(max_wins + 1)
+                                
+                                # Create labels
+                                labels = [f"{bins[i]}-{bins[i+1]-1}" for i in range(len(bins)-1)]
+                                
+                                # Categorize teams by win range
+                                dist = pd.cut(wins, bins=bins, labels=labels, right=False).value_counts().sort_index()
+                                
+                                # Create gradient colors (muted blue → basketball orange → warm coral)
+                                n_bars = len(dist)
+                                colors = []
+                                color_stops = [
+                                    (91, 141, 190),    # Muted blue
+                                    (255, 158, 100),   # Basketball orange
+                                    (232, 132, 92)     # Warm coral
+                                ]
+                                
+                                for i in range(n_bars):
+                                    ratio = i / max(n_bars - 1, 1)
+                                    
+                                    if ratio < 0.5:
+                                        # Blue to orange
+                                        progress = ratio * 2
+                                        start = color_stops[0]
+                                        end = color_stops[1]
+                                    else:
+                                        # Orange to coral
+                                        progress = (ratio - 0.5) * 2
+                                        start = color_stops[1]
+                                        end = color_stops[2]
+                                    
+                                    r = int(start[0] + (end[0] - start[0]) * progress)
+                                    g = int(start[1] + (end[1] - start[1]) * progress)
+                                    b = int(start[2] + (end[2] - start[2]) * progress)
+                                    colors.append(f'rgb({r},{g},{b})')
+                                
+                                fig = go.Figure(data=[
+                                    go.Bar(
+                                        x=dist.index.astype(str),
+                                        y=dist.values,
+                                        marker=dict(
+                                            color=colors,
+                                            line=dict(color='rgba(255,255,255,0.2)', width=1)
+                                        ),
+                                        text=dist.values,
+                                        textposition='outside',
+                                        textfont=dict(size=11, color='#fff'),
+                                        hovertemplate='<b>%{x}</b><br>Teams: %{y}<extra></extra>',
+                                        width=0.5
+                                    )
+                                ])
+                                fig.update_layout(
+                                    title=dict(
+                                        text='<b>Win Distribution</b><br><sup>How teams are spread across win ranges</sup>',
+                                        font=dict(size=16)
+                                    ),
+                                    xaxis_title='Win Range',
+                                    yaxis_title='Number of Teams',
+                                    yaxis=dict(range=[0, max(dist.values) * 1.15]),
+                                    height=380,
+                                    margin=dict(l=70, r=30, t=80, b=60),
+                                    showlegend=False,
+                                    template='plotly_dark',
+                                    hovermode='x unified'
+                                )
+                                st.plotly_chart(fig, use_container_width=True, config=dict(displayModeBar=False))
+                            else:
+                                st.info("Win data unavailable.")
+                        except Exception as e:
+                            st.info(f"Chart unavailable: {str(e)}")
+                    else:
+                        st.info("Chart unavailable.")
+        except Exception:
+            st.info("Season overview loading...")
+
         st.stop()
     
     # --- LEAGUE LEADERS MODE ---
