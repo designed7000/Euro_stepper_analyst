@@ -307,8 +307,8 @@ try:
                         -webkit-mask-composite: source-in;
                         pointer-events: none; z-index: 0;" />
             <div style="position: relative; z-index: 1;">
-                <h1 style="font-size: 3em; margin-bottom: 10px;">NBA Player DNA</h1>
-                <h2 style="font-size: 1.5em; font-weight: normal;">Spatial Efficiency Engine</h2>
+                <h1 style="font-size: 3em; margin-bottom: 10px;">Euro Stepper Analyst</h1>
+                <h2 style="font-size: 1.5em; font-weight: normal;">NBA Players DNA Analysis</h2>
             </div>
         </div>
         """, unsafe_allow_html=True)
