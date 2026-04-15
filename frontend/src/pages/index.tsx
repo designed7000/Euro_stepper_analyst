@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import PlotlyChart from '@/components/PlotlyChart'
 import SeasonSelector from '@/components/SeasonSelector'
 
-const DEFAULT_SEASON = '2024-25'
+const DEFAULT_SEASON = '2025-26'
 
 export default function HomePage() {
   const [season, setSeason] = useState(DEFAULT_SEASON)

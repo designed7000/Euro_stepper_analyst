@@ -2,7 +2,7 @@
 import useSWR from 'swr'
 import { api } from '@/lib/api'
 
-const FALLBACK_SEASONS = ['2025-26', '2024-25', '2023-24', '2022-23', '2021-22', '2015-16']
+const FALLBACK_SEASONS = ['2025-26', '2024-25', '2023-24', '2022-23', '2021-22']
 
 interface SeasonSelectorProps {
   value: string

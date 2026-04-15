@@ -13,7 +13,7 @@ export default function DoppelgangersPage() {
   const { name, season: seasonParam } = router.query
 
   const playerName = decodeURIComponent((name as string) || '')
-  const [season, setSeason] = useState((seasonParam as string) || '2024-25')
+  const [season, setSeason] = useState((seasonParam as string) || '2025-26')
   const [showTable, setShowTable] = useState(false)
   const [showMethodology, setShowMethodology] = useState(false)
 

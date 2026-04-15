@@ -16,7 +16,7 @@ const POSITIONS = ['Guard', 'Forward', 'Center']
 const TOP_N_OPTIONS = [5, 10, 20]
 
 export default function LeadersPage() {
-  const [season, setSeason] = useState('2024-25')
+  const [season, setSeason] = useState('2025-26')
   const [tab, setTab] = useState('scoring')
   const [topN, setTopN] = useState(5)
 

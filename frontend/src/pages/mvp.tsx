@@ -10,7 +10,7 @@ import clsx from 'clsx'
 const TOP_N_OPTIONS = [5, 10, 20]
 
 export default function MvpPage() {
-  const [season, setSeason] = useState('2024-25')
+  const [season, setSeason] = useState('2025-26')
   const [topN, setTopN] = useState(10)
   const [showMethodology, setShowMethodology] = useState(false)
 

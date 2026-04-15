@@ -8,7 +8,7 @@ import SeasonSelector from '@/components/SeasonSelector'
 export default function PlayerIndexPage() {
   const router = useRouter()
   const [name, setName] = useState('')
-  const [season, setSeason] = useState('2024-25')
+  const [season, setSeason] = useState('2025-26')
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()

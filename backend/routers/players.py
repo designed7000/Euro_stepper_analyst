@@ -79,15 +79,18 @@ async def player_shots(
     scatter_fig = create_shot_chart(shots_df, corrected_name, season, EFFICIENCY_COLOR_RANGE)
     hexbin_fig = create_hexbin_chart(shots_df, corrected_name, season)
 
-    # Zone frequency profile chart
-    player_stats_df, league_zone_dist = _build_zone_profile(shots_df, league_avg_df)
-    zone_profile_fig = create_single_player_zone_chart(player_stats_df, league_zone_dist, corrected_name)
-
     charts = {"scatter": json.loads(scatter_fig.to_json())}
     if hexbin_fig:
         charts["heatmap"] = json.loads(hexbin_fig.to_json())
-    if zone_profile_fig:
-        charts["zone_profile"] = json.loads(zone_profile_fig.to_json())
+
+    # Zone frequency profile chart (non-fatal if it fails)
+    try:
+        player_stats_df, league_zone_dist = _build_zone_profile(shots_df, league_avg_df)
+        zone_profile_fig = create_single_player_zone_chart(player_stats_df, league_zone_dist, corrected_name)
+        if zone_profile_fig:
+            charts["zone_profile"] = json.loads(zone_profile_fig.to_json())
+    except Exception:
+        pass
 
     return {
         "player_name": corrected_name,
@@ -224,15 +227,20 @@ def _build_zone_profile(shots_df, league_avg_df):
             'freq_pct': (count / len(shots_df) * 100) if len(shots_df) > 0 else 0
         })
 
+    # frames[1] from ShotChartDetail has FGA, FGM, FG_PCT columns (not league_freq_pct/league_fg_pct)
     league_avg_copy = league_avg_df.copy()
     league_avg_copy['zone_group'] = league_avg_copy['SHOT_ZONE_BASIC'].map(ZONE_MAPPING)
     league_zone_dist = league_avg_copy.groupby('zone_group').agg(
-        league_fga=('league_freq_pct', 'sum'),
-        league_fgm=('league_fg_pct', 'mean')
+        league_fga=('FGA', 'sum'),
+        league_fgm=('FGM', 'sum')
     ).reset_index()
-    league_zone_dist.rename(columns={'league_fgm': 'league_fg_pct'}, inplace=True)
+    league_zone_dist['league_fg_pct'] = (
+        league_zone_dist['league_fgm'] / league_zone_dist['league_fga']
+    ).fillna(0)
     total = league_zone_dist['league_fga'].sum()
-    league_zone_dist['league_freq_pct'] = league_zone_dist['league_fga'] / total * 100 if total > 0 else 0
+    league_zone_dist['league_freq_pct'] = (
+        league_zone_dist['league_fga'] / total * 100 if total > 0 else 0
+    )
     league_zone_dist = league_zone_dist[league_zone_dist['zone_group'].isin(ZONE_ORDER)]
 
     return pd.DataFrame(player_stats_list), league_zone_dist

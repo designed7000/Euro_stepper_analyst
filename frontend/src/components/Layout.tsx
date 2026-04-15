@@ -38,14 +38,10 @@ export default function Layout({ children }: LayoutProps) {
         )}
       >
         {/* Logo */}
-        <div className="p-6 border-b border-border">
-          <Link href="/" className="flex items-center gap-3">
+        <div className="p-4 border-b border-border flex justify-center">
+          <Link href="/">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
-            <div>
-              <div className="text-white font-bold text-sm leading-tight">Euro Stepper</div>
-              <div className="text-muted text-xs">NBA Analyst</div>
-            </div>
+            <img src="/images/logo.png" alt="Euro Stepper Analyst" className="w-28 h-28 object-contain" />
           </Link>
         </div>
 

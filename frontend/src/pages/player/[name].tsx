@@ -15,7 +15,7 @@ export default function PlayerPage() {
   const { name, season: seasonParam, clutch: clutchParam } = router.query
 
   const playerName = decodeURIComponent((name as string) || '')
-  const [season, setSeason] = useState((seasonParam as string) || '2024-25')
+  const [season, setSeason] = useState((seasonParam as string) || '2025-26')
   const [clutch, setClutch] = useState(clutchParam === 'true')
   const [chartView, setChartView] = useState<'scatter' | 'heatmap'>('scatter')
   const [compareMode, setCompareMode] = useState(false)
