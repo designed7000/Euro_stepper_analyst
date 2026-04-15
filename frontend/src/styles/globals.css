@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --accent: #ff4b4b;
+  --teal: #00ced1;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Plotly chart dark overrides */
+.js-plotly-plot .plotly .modebar {
+  background: transparent !important;
+}
+
+/* Stat card */
+.stat-card {
+  @apply bg-surface border border-border rounded-xl p-4;
+}
+
+/* Section header */
+.section-title {
+  @apply text-xl font-semibold text-white mb-4;
+}
+
+/* Tab button */
+.tab-btn {
+  @apply px-4 py-2 text-sm font-medium rounded-lg transition-colors;
+}
+.tab-btn.active {
+  @apply bg-accent text-white;
+}
+.tab-btn:not(.active) {
+  @apply text-muted hover:text-white hover:bg-surface;
+}
