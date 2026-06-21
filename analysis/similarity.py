@@ -1,20 +1,24 @@
 """
 Player similarity analysis using machine learning.
-"""
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.neighbors import NearestNeighbors
+scikit-learn is imported lazily inside build_similarity_model so that importing
+this module (and the rest of the data/analysis layer, and the test suite) does
+not pull in sklearn — it loads only when the doppelganger feature actually runs.
+"""
 
 
 def build_similarity_model(stats_df):
     """Build the ML pipeline for player similarity.
-    
+
     Args:
         stats_df: DataFrame with player advanced stats
-        
+
     Returns:
         tuple: (nn_model, scaler, feature_cols)
     """
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.neighbors import NearestNeighbors
+
     # Feature columns for "Style Vector"
     feature_cols = ['USG_PCT', 'TS_PCT', 'AST_PCT', 'REB_PCT', 'PACE', '3P_AR']
     

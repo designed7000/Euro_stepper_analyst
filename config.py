@@ -2,16 +2,68 @@
 Configuration settings and constants for NBA Shot DNA app.
 """
 
-# Available seasons for selection
-SEASONS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22", "2015-16"]
+import os
+from datetime import date
+from pathlib import Path
 
-# Historical seasons for trend analysis
-HISTORICAL_SEASONS = ["2024-25", "2023-24", "2022-23", "2021-22"]
 
-# Chart color schemes
+# --- SEASON DERIVATION ---------------------------------------------------
+
+def current_season(today=None):
+    """Return the current NBA season string (e.g. '2025-26').
+
+    NBA seasons start in October. From October through December the season
+    is (year, year+1); from January through September it is (year-1, year).
+
+    Args:
+        today: Optional date to evaluate against (defaults to today).
+
+    Returns:
+        str: Season in 'YYYY-YY' format.
+    """
+    today = today or date.today()
+    start_year = today.year if today.month >= 10 else today.year - 1
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def season_string(start_year):
+    """Build a 'YYYY-YY' season string from its starting year."""
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def recent_seasons(n=6, today=None):
+    """Return the current season plus the previous n-1 seasons, newest first."""
+    start = int(current_season(today).split("-")[0])
+    return [season_string(start - i) for i in range(n)]
+
+
+def historical_seasons(n=4, today=None):
+    """Return the n completed seasons before the current one, newest first."""
+    start = int(current_season(today).split("-")[0])
+    return [season_string(start - i) for i in range(1, n + 1)]
+
+
+# Available seasons for selection (current + previous 5)
+SEASONS = recent_seasons(6)
+
+# Historical seasons for trend analysis (4 completed seasons before current)
+HISTORICAL_SEASONS = historical_seasons(4)
+
+
+# --- SNAPSHOT STORE ------------------------------------------------------
+
+# Where pre-fetched snapshots live. Override with NBA_STORE_DIR (used by tests).
+STORE_DIR = os.environ.get(
+    "NBA_STORE_DIR",
+    str(Path(__file__).resolve().parent / "data_store"),
+)
+
+
+# --- CHART COLOR SCHEMES -------------------------------------------------
+
 POSITION_COLORS = {
     'Guard': '#00CED1',
-    'Forward': '#FF6B6B', 
+    'Forward': '#FF6B6B',
     'Center': '#98D8C8'
 }
 

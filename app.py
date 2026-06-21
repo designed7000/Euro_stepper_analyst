@@ -14,7 +14,7 @@ from config import (
     EFFICIENCY_COLOR_RANGE, CHART_HEIGHT
 )
 from utils.helpers import get_player_id
-from data.api import (
+from data.repository import (
     get_player_shots, get_league_averages, get_advanced_stats, get_league_leaders, get_standings
 )
 from data.processing import (
@@ -47,8 +47,8 @@ from analysis.similarity import (
 st.set_page_config(page_title="NBA Shot DNA", layout="wide")
 
 
-# --- CACHED HELPER FOR HISTORICAL DATA ---
-@st.cache_data
+# --- HISTORICAL DATA HELPER ---
+# No @st.cache_data: the snapshot store (data/repository) is the cache now.
 def get_historical_metrics(player_id, seasons, clutch):
     """Fetch metrics across multiple seasons."""
     history = []
@@ -64,8 +64,8 @@ def get_historical_metrics(player_id, seasons, clutch):
                     'gsaa': m['gsaa'],
                     'attempts': m['attempts']
                 })
-        except:
-            pass
+        except Exception as exc:
+            print(f"Historical metrics skipped {player_id} {s}: {exc}")
     return pd.DataFrame(history)
 
 
@@ -443,8 +443,6 @@ try:
                         st.info("Not enough data for this season.")
                 else:
                     st.info("Stats unavailable for this season.")
-            except Exception as e:
-                st.info(f"Fun plot loading... {str(e)}")
             except Exception as e:
                 st.info(f"Fun plot loading... {str(e)}")
 
@@ -964,11 +962,11 @@ try:
                         
                         # Load Player B data (top match) for comparison
                         with st.spinner(f"Loading data for {player_name_b}..."):
-                            p_id_b = get_player_id(player_name_b)
-                            if p_id_b is None:
+                            p_id_b, player_name_b, _ = get_player_id(player_name_b)
+                            if not p_id_b:
                                 st.warning(f"Could not find player ID for {player_name_b}")
                                 st.stop()
-                            
+
                             df_b, _ = get_player_shots(p_id_b, season, clutch_only)
                         
                         if df_b.empty:
