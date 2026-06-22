@@ -83,8 +83,12 @@ ML-powered player similarity using **K-Nearest Neighbors**:
 ## Installation
 
 ### Prerequisites
-- Python 3.10+
-- pip package manager
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) for environment management
+
+> **Note:** Do not place this repo inside an iCloud-synced folder (e.g. `~/Desktop`
+> or `~/Documents` with "Desktop & Documents" sync on). Cloud-placeholder files
+> break native extension loading in the virtualenv. Use a path like `~/code/`.
 
 ### Quick Start
 
@@ -93,18 +97,46 @@ ML-powered player similarity using **K-Nearest Neighbors**:
 git clone https://github.com/designed7000/Euro_stepper_analyst.git
 cd Euro_stepper_analyst
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# Install dependencies (creates .venv)
+uv sync
 
-# Install dependencies
-pip install -r requirements.txt
+# Fetch a season's data into the local snapshot store (required before first run)
+uv run python -m data.refresh --season 2024-25
 
 # Launch the app
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 The app will open at `http://localhost:8501`
+
+### Data refresh (snapshot-first)
+
+The app **never calls the NBA API at request time** — it reads pre-fetched
+snapshots from a local `data_store/` directory. This keeps the UI fast and
+decoupled from the NBA API's rate limits and cloud-IP blocking.
+
+```bash
+# Refresh the current season (default)
+uv run python -m data.refresh
+
+# Refresh a specific season
+uv run python -m data.refresh --season 2023-24
+
+# Refresh a subset of datasets
+uv run python -m data.refresh --datasets leaders standings
+```
+
+A season only shows data in the app **after** it has been refreshed. League-wide
+data (leaders, standings, advanced stats, zone averages, MVP) is served entirely
+from snapshots; per-player shot charts are fetched once on first view and then
+cached. Run the refresh on a schedule (cron / launchd / CI) whenever new games
+are played. The `data_store/` directory is gitignored.
+
+### Running tests
+
+```bash
+uv run pytest -q
+```
 
 ## 📖 Usage
 

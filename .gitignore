@@ -3,3 +3,8 @@ __pycache__
 cache
 .devcontainer
 .DS_Store
+.ruff_cache
+.pytest_cache
+
+# Snapshot store (regenerate with: python -m data.refresh)
+data_store/
