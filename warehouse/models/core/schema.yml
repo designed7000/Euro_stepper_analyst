@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: fct_shot
+    description: One row for each field goal attempt of the regular season.
+    columns:
+      - name: shot_id
+        data_tests: [unique, not_null]
+      - name: player_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_player')
+                field: player_id
+      - name: game_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_game')
+                field: game_id
+      - name: shot_value
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [2, 3]
+      - name: made
+        data_tests: [not_null]
+      - name: game_date
+        data_tests: [not_null]
+  - name: dim_player
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
+      - name: full_name
+        data_tests: [not_null]
+  - name: dim_team
+    columns:
+      - name: team_id
+        data_tests: [unique, not_null]
+  - name: dim_game
+    columns:
+      - name: game_id
+        data_tests: [unique, not_null]
+      - name: home_team_id
+        data_tests: [not_null]
+      - name: away_team_id
+        data_tests: [not_null]
