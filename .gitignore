@@ -1,5 +1,11 @@
 .venv
 __pycache__
-cache
-.devcontainer
 .DS_Store
+lake/
+warehouse/target/
+warehouse/logs/
+warehouse/dbt_packages/
+.env
+.superpowers/
+.pytest_cache/
+.ruff_cache/
