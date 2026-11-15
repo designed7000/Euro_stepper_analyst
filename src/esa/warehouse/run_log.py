@@ -30,15 +30,16 @@ def ensure(con: duckdb.DuckDBPyConnection) -> None:
 
 def start(con: duckdb.DuckDBPyConnection, command: str, season: str | None, now: datetime) -> int:
     """Record the start of a run and return its id."""
-    row = con.execute(
+    # fetchall, not fetchone: DuckDB keeps a result open until all rows are read.
+    rows = con.execute(
         """
         insert into ops.run_log (run_id, command, season, started_at, status)
         values (nextval('ops.run_id_seq'), ?, ?, ?, 'running')
         returning run_id
         """,
         [command, season, now],
-    ).fetchone()
-    return row[0]
+    ).fetchall()
+    return rows[0][0]
 
 
 def finish(
@@ -63,11 +64,12 @@ def finish(
 
 def last_good_game_date(con: duckdb.DuckDBPyConnection, season: str) -> date | None:
     """Latest game date of a successful load of the season."""
-    row = con.execute(
+    # fetchall, not fetchone: DuckDB keeps a result open until all rows are read.
+    rows = con.execute(
         """
         select max(last_game_date) from ops.run_log
         where command = 'load' and status = 'ok' and season = ?
         """,
         [season],
-    ).fetchone()
-    return row[0]
+    ).fetchall()
+    return rows[0][0]
