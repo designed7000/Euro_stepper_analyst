@@ -20,6 +20,8 @@ with typed as (
         cast(LOC_Y as double) / 10.0 as loc_y_ft,
         {{ to_int('SHOT_ATTEMPTED_FLAG') }} = 1 as attempted,
         {{ to_int('SHOT_MADE_FLAG') }} = 1 as made,
+        HTM as home_abbreviation,
+        VTM as away_abbreviation,
         _origin,
         _loaded_at
     from {{ source('raw', 'nba_shots') }}

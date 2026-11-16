@@ -47,3 +47,5 @@ models:
         data_tests: [not_null]
       - name: away_team_id
         data_tests: [not_null]
+      - name: is_neutral_site
+        data_tests: [not_null]

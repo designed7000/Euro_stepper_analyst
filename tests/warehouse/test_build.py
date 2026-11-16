@@ -19,7 +19,7 @@ def _shot(**values):
         "ACTION_TYPE": "Jump Shot", "SHOT_TYPE": "2PT Field Goal", "SHOT_ZONE_BASIC": "Mid-Range",
         "SHOT_ZONE_AREA": "Center(C)", "SHOT_ZONE_RANGE": "16-24 ft.", "SHOT_DISTANCE": "22",
         "LOC_X": "-220", "LOC_Y": "15", "SHOT_ATTEMPTED_FLAG": "1", "SHOT_MADE_FLAG": "1",
-        "GAME_DATE": "20261114",
+        "GAME_DATE": "20261114", "HTM": "BOS", "VTM": "NYK",
     }  # fmt: skip
     return row | values
 
@@ -132,3 +132,29 @@ def test_failed_data_test_raises_build_error_that_names_the_test(lake):
     )  # fmt: skip
     with pytest.raises(BuildError, match="relationships_fct_shot_game_id"):
         build_warehouse(lake)
+
+
+def test_neutral_site_game_takes_the_home_team_from_the_shot_data(lake):
+    # At a neutral site the game log shows '@' for the two teams (seen in real data:
+    # Mexico City, Paris, NBA Cup semifinals). The shot data names the designated home team.
+    common = {"season": SEASON, "origin": "api", "tag": "neutral", "raw_dir": lake.raw_dir}
+    write_raw(
+        pd.DataFrame([
+            _game("0022600003", "100", "BOS", "BOS @ NYK"),
+            _game("0022600003", "200", "NYK", "NYK @ BOS"),
+        ]),
+        source=GAME_LOG, now=T1, **common,
+    )  # fmt: skip
+    write_raw(
+        pd.DataFrame([_shot(GAME_ID="0022600003", GAME_EVENT_ID="7", HTM="NYK", VTM="BOS")]),
+        source=SHOTS, now=T1, **common,
+    )  # fmt: skip
+    build_warehouse(lake)
+    assert q(
+        lake,
+        "select game_id, home_team_id, away_team_id, is_neutral_site from core.dim_game order by 1",
+    ) == [
+        ("0022600001", 100, 200, False),
+        ("0022600002", 200, 100, False),
+        ("0022600003", 200, 100, True),
+    ]
