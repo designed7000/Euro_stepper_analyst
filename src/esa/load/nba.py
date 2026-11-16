@@ -43,7 +43,8 @@ def _call(make: Callable[[], object], settings: Settings) -> pd.DataFrame:
     return frame
 
 
-def _check(frame: pd.DataFrame, required: set[str], source: str) -> pd.DataFrame:
+def check_columns(frame: pd.DataFrame, required: set[str], source: str) -> pd.DataFrame:
+    """Return the frame, or raise SchemaError that names each missing column."""
     missing = sorted(required - set(frame.columns))
     if missing:
         raise SchemaError(f"{source} response has missing columns: {', '.join(missing)}")
@@ -71,7 +72,7 @@ def fetch_shots(
         ),
         settings,
     )
-    return _check(frame, SHOT_COLUMNS, "ShotChartDetail")
+    return check_columns(frame, SHOT_COLUMNS, "ShotChartDetail")
 
 
 def fetch_player_index(season: str, settings: Settings) -> pd.DataFrame:
@@ -82,7 +83,7 @@ def fetch_player_index(season: str, settings: Settings) -> pd.DataFrame:
         ),
         settings,
     )
-    return _check(frame, PLAYER_INDEX_COLUMNS, "PlayerIndex")
+    return check_columns(frame, PLAYER_INDEX_COLUMNS, "PlayerIndex")
 
 
 def fetch_game_log(season: str, settings: Settings) -> pd.DataFrame:
@@ -96,4 +97,4 @@ def fetch_game_log(season: str, settings: Settings) -> pd.DataFrame:
         ),
         settings,
     )
-    return _check(frame, GAME_LOG_COLUMNS, "LeagueGameLog")
+    return check_columns(frame, GAME_LOG_COLUMNS, "LeagueGameLog")

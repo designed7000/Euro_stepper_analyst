@@ -6,7 +6,13 @@ from datetime import date, datetime
 import pandas as pd
 
 from esa.load.archive import download, fetch_index, read_shot_archive, shot_archive_name
-from esa.load.nba import fetch_game_log, fetch_player_index, fetch_shots
+from esa.load.nba import (
+    SHOT_COLUMNS,
+    check_columns,
+    fetch_game_log,
+    fetch_player_index,
+    fetch_shots,
+)
 from esa.load.raw_store import GAME_LOG, PLAYER_INDEX, SHOTS, has_raw, write_raw
 from esa.load.retry import LoadError
 from esa.load.window import plan_date_from
@@ -94,6 +100,7 @@ def run_backfill(settings: Settings, now: datetime) -> None:
                 name = shot_archive_name(year)
                 if name in index:
                     shots = read_shot_archive(download(index[name], settings), name)
+                    check_columns(shots, SHOT_COLUMNS, f"Archive {name}")
                     origin = "archive"
                 else:
                     shots = fetch_shots(season, None, None, settings)

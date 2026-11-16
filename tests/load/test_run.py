@@ -128,3 +128,15 @@ def test_daily_load_after_backfill_uses_a_window(env):
     env.shot_calls.clear()
     run_daily_load(env.settings, NOW + timedelta(days=1))
     assert env.shot_calls == [("2026-27", date(2026, 11, 13), date(2026, 11, 16))]
+
+
+def test_backfill_rejects_an_archive_with_missing_columns_before_it_writes(env, monkeypatch):
+    # Raw files do not change, so a bad archive must not get into the lake.
+    env.index = {"shotdetail_2025": "https://x/2025.tar.xz"}
+    bad = _frame(nba.SHOT_COLUMNS - {"LOC_X"}, GAME_DATE="20260410")
+    monkeypatch.setattr(
+        "esa.load.run.download", lambda url, s: _tar_xz("shotdetail_2025.csv", bad)
+    )
+    with pytest.raises(nba.SchemaError, match="LOC_X"):
+        run_backfill(env.settings, NOW)
+    assert not has_raw(SHOTS, "2025-26", env.settings.raw_dir)
