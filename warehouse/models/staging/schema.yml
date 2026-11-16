@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_shots
+    columns:
+      - name: game_id
+        data_tests: [not_null]
+      - name: game_event_id
+        data_tests: [not_null]
+  - name: stg_game_log
+    columns:
+      - name: game_id
+        data_tests: [not_null]
+      - name: team_id
+        data_tests: [not_null]
+  - name: stg_player_index
+    columns:
+      - name: player_id
+        data_tests: [unique, not_null]
