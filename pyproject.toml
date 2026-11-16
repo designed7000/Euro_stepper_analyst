@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Euro Stepper Analyst: NBA analysis platform"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    # dbt-core 1.12+ needs dbt-core-experimental-parser, whose build downloads a
+    # binary from GitHub. Stay on 1.11 until that package installs from a wheel.
     "dbt-core>=1.11,<1.12",
     "dbt-duckdb>=1.11.1",
     "duckdb>=2.0.0",
