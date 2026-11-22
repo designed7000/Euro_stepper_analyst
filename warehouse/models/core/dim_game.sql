@@ -37,8 +37,11 @@ select
     season,
     game_date,
     home_team_id,
+    -- A game with one team in the game log has no away team. The not_null test
+    -- then fails the build, so the home team is not also given as the away team.
     case
         when home_team_id is null then null
+        when team_id_low = team_id_high then null
         when home_team_id = team_id_low then team_id_high
         else team_id_low
     end as away_team_id,

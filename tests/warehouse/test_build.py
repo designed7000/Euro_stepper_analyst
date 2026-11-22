@@ -181,3 +181,13 @@ def test_neutral_site_game_takes_the_home_team_from_the_shot_data(lake):
         ("0022600002", 200, 100, False),
         ("0022600003", 200, 100, True),
     ]
+
+
+def test_game_with_one_team_in_the_game_log_fails_the_build(lake):
+    # A part response of the game log. The away team must not be the home team.
+    write_raw(
+        pd.DataFrame([_game("0022600004", "100", "BOS", "BOS vs. NYK")]), source=GAME_LOG,
+        season=SEASON, origin="api", tag="part", raw_dir=lake.raw_dir, now=T1,
+    )  # fmt: skip
+    with pytest.raises(BuildError, match="not_null_dim_game_away_team_id"):
+        build_warehouse(lake)
