@@ -1,0 +1,41 @@
+[project]
+name = "esa"
+version = "0.1.0"
+description = "Euro Stepper Analyst: NBA analysis platform"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # dbt-core 1.12+ needs dbt-core-experimental-parser, whose build downloads a
+    # binary from GitHub. Stay on 1.11 until that package installs from a wheel.
+    "dbt-core>=1.11,<1.12",
+    "dbt-duckdb>=1.11.1",
+    "duckdb>=2.0.0",
+    "nba-api>=1.12.0",
+    "pandas>=3.1.1",
+    "pyarrow>=26.0.1",
+    "pydantic-settings>=2.16.3",
+    "requests>=2.32",  # esa.load.archive downloads the shot archives
+    "typer>=0.29.1",
+]
+
+[project.scripts]
+esa = "esa.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/esa"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["legacy"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]

@@ -82,29 +82,32 @@ ML-powered player similarity using **K-Nearest Neighbors**:
 
 ## Installation
 
+> The platform is being rebuilt. The sections below this one describe the old
+> Streamlit app, which is now in `legacy/`. Design: `docs/superpowers/specs/`.
+
 ### Prerequisites
-- Python 3.10+
-- pip package manager
+- Python 3.12
+- [uv](https://docs.astral.sh/uv/)
 
 ### Quick Start
 
 ```bash
-# Clone the repository
 git clone https://github.com/designed7000/Euro_stepper_analyst.git
 cd Euro_stepper_analyst
+uv sync
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Launch the app
-streamlit run app.py
+uv run esa probe             # check that the NBA endpoints answer
+uv run esa load --backfill   # one time: load the history from 2015-16
+uv run esa build             # build the DuckDB warehouse and run the data tests
+uv run esa daily             # each day: load new games, then build
 ```
 
-The app will open at `http://localhost:8501`
+The data stays on your computer, in `lake/`. It is not in Git.
+
+Run `esa` from the clone, with `uv sync` and `uv run`. `esa` finds `lake/` and the
+dbt project in `warehouse/` from the location of its source files, so an install
+that copies the package somewhere else (`pip install .`, `uv tool install .`) does
+not work. `ESA_LAKE_DIR` can move the lake, but not the dbt project.
 
 ## 📖 Usage
 
