@@ -6,6 +6,7 @@ from importlib.metadata import version as package_version
 
 import typer
 
+from esa.clock import utc_now
 from esa.load.archive import fetch_index
 from esa.load.nba import fetch_game_log, fetch_player_index, fetch_shots
 from esa.load.raw_store import GAME_LOG, PLAYER_INDEX, SHOTS
@@ -63,7 +64,7 @@ def _build(settings: Settings, now: datetime) -> None:
             status="failed" if error else "ok",
             last_game_date=None,
             message=str(error) if error else None,
-            now=datetime.now(),
+            now=utc_now(),
         )
     finally:
         con.close()
@@ -83,7 +84,7 @@ def load(
 ) -> None:
     """Get new data from the NBA and write raw files."""
     try:
-        _load(Settings(), datetime.now(), backfill)
+        _load(Settings(), utc_now(), backfill)
     except Exception as exc:
         raise _fail(exc) from exc
 
@@ -92,7 +93,7 @@ def load(
 def build() -> None:
     """Build the warehouse tables from the raw files and run the data tests."""
     try:
-        _build(Settings(), datetime.now())
+        _build(Settings(), utc_now())
     except Exception as exc:
         raise _fail(exc) from exc
 
@@ -100,7 +101,7 @@ def build() -> None:
 @app.command()
 def daily() -> None:
     """Do the daily run: load, then build. A failed step stops the run."""
-    settings, now = Settings(), datetime.now()
+    settings, now = Settings(), utc_now()
     try:
         _load(settings, now, backfill=False)
         _build(settings, now)
@@ -112,7 +113,7 @@ def daily() -> None:
 def probe() -> None:
     """Check that the archive index and the three NBA endpoints answer correctly."""
     settings = Settings()
-    today = datetime.now().date()
+    today = utc_now().date()
     season = season_label(season_start_year(today))
     window_start = today - timedelta(days=settings.lookback_days)
     checks: list[tuple[str, Callable[[], int]]] = [

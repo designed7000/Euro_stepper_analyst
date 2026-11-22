@@ -1,3 +1,6 @@
+import time
+from datetime import UTC, datetime, timedelta
+
 import pandas as pd
 import pytest
 from typer.testing import CliRunner
@@ -67,6 +70,25 @@ def test_load_backfill_flag(monkeypatch):
     monkeypatch.setattr("esa.cli.run_daily_load", lambda s, now: called.append("daily"))
     CliRunner().invoke(app, ["load", "--backfill"])
     assert called == ["backfill"]
+
+
+@pytest.fixture
+def new_york_time(monkeypatch):
+    """A local zone that is never UTC, so a test can see local time used as UTC."""
+    monkeypatch.setenv("TZ", "America/New_York")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def test_load_uses_utc_time(monkeypatch, new_york_time):
+    # Local time goes back one hour in autumn, so a later load could look older.
+    times = []
+    monkeypatch.setattr("esa.cli.run_daily_load", lambda s, now: times.append(now))
+    CliRunner().invoke(app, ["load"])
+    utc = datetime.now(UTC).replace(tzinfo=None)
+    assert times[0].tzinfo is None and abs(times[0] - utc) < timedelta(seconds=5)
 
 
 def test_load_without_flag_is_the_daily_load(monkeypatch):
