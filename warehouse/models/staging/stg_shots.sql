@@ -1,4 +1,6 @@
--- One row for each shot event. If a shot was loaded more than one time, the latest load wins.
+-- One row for each shot event. The latest load of each game wins for the full game:
+-- a load holds all the shots of each game in its date window, so a shot that the NBA
+-- removed or numbered again is not in the latest load, and it goes from this model.
 with typed as (
     select
         {{ game_id('GAME_ID') }} as game_id,
@@ -25,10 +27,17 @@ with typed as (
         _origin,
         _loaded_at
     from {{ source('raw', 'nba_shots') }}
+),
+
+latest_load_of_game as (
+    select *
+    from typed
+    qualify _loaded_at = max(_loaded_at) over (partition by game_id)
 )
 
+-- A load can have the same shot event two times. Keep one.
 select * exclude (_origin, _loaded_at)
-from typed
+from latest_load_of_game
 qualify row_number() over (
     partition by game_id, game_event_id
     order by _loaded_at desc, _origin

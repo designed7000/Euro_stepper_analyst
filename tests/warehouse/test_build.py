@@ -51,8 +51,16 @@ def lake(tmp_path):
         ],
         SHOTS,
     )  # fmt: skip
-    # a stat correction: the same shot, loaded one day later, is now a miss
-    write([_shot(SHOT_TYPE="3PT Field Goal", SHOT_MADE_FLAG="0")], SHOTS, T1 + timedelta(days=1))
+    # a stat correction: game 1 loaded one day later, and shot 10 is now a miss.
+    # A window load holds all the shots of each game in the window.
+    write(
+        [
+            _shot(SHOT_TYPE="3PT Field Goal", SHOT_MADE_FLAG="0"),
+            _shot(GAME_EVENT_ID="11", PLAYER_ID="2", PLAYER_NAME="Cy Du", SHOT_MADE_FLAG="0"),
+        ],
+        SHOTS,
+        T1 + timedelta(days=1),
+    )
     write(
         [
             _game("0022600001", "100", "BOS", "BOS vs. NYK"),
@@ -93,6 +101,21 @@ def test_fct_shot_is_clean(lake):
         "select loc_x_ft, loc_y_ft, shot_value, seconds_remaining, game_date, season "
         "from core.fct_shot where shot_id = '0022600001-10'",
     ) == [(-22.0, 1.5, 3, 150, date(2026, 11, 14), SEASON)]
+
+
+def test_shot_missing_from_a_later_load_of_its_game_is_removed(lake):
+    # The NBA rescinded shot 11 of game 1, so the next window load has the game without it.
+    write_raw(
+        pd.DataFrame([_shot(SHOT_TYPE="3PT Field Goal", SHOT_MADE_FLAG="0")]), source=SHOTS,
+        season=SEASON, origin="api", tag="window", raw_dir=lake.raw_dir,
+        now=T1 + timedelta(days=2),
+    )  # fmt: skip
+    build_warehouse(lake)
+    # game 2 is not in the later load, so its shot stays
+    assert q(lake, "select shot_id from core.fct_shot order by 1") == [
+        ("0022600001-10",),
+        ("0022600002-5",),
+    ]
 
 
 def test_dims(lake):
