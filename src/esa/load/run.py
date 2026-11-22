@@ -33,28 +33,47 @@ def _last_game_date(shots: pd.DataFrame) -> date | None:
         raise LoadError(f"Shot GAME_DATE does not have the format YYYYMMDD: {exc}") from exc
 
 
-def _logged_load[T](
-    settings: Settings, season: str, now: datetime, body: Callable[[date | None], T]
-) -> T:
-    """Run a load body with a run_log row. The body gets the last good game date
-    and returns (result, last game date)."""
+def _start_run(settings: Settings, season: str, now: datetime) -> tuple[int, date | None]:
+    """Record the start of a load. Return the run id and the last good game date."""
     con = connect(settings)
     try:
         run_log.ensure(con)
         last_good = run_log.last_good_game_date(con, season)
-        run_id = run_log.start(con, "load", season, now)
-        try:
-            result, last = body(last_good)
-        except Exception as exc:
-            run_log.finish(
-                con, run_id, status="failed", last_game_date=None, message=str(exc),
-                now=utc_now(),
-            )  # fmt: skip
-            raise
-        run_log.finish(con, run_id, status="ok", last_game_date=last, message=None, now=utc_now())
-        return result
+        return run_log.start(con, "load", season, now), last_good
     finally:
         con.close()
+
+
+def _finish_run(
+    settings: Settings, run_id: int, status: run_log.Status, last: date | None, message: str | None
+) -> None:
+    con = connect(settings)
+    try:
+        run_log.finish(
+            con, run_id, status=status, last_game_date=last, message=message, now=utc_now()
+        )
+    finally:
+        con.close()
+
+
+def _logged_load[T](
+    settings: Settings, season: str, now: datetime, body: Callable[[date | None], T]
+) -> T:
+    """Run a load body with a run_log row. The body gets the last good game date
+    and returns (result, last game date).
+
+    The warehouse is open only to write the run_log row, not while the body waits
+    for the network: DuckDB permits one writer process, so `esa build` can run
+    during a long load.
+    """
+    run_id, last_good = _start_run(settings, season, now)
+    try:
+        result, last = body(last_good)
+    except BaseException as exc:  # also Ctrl-C, so that no row stays at 'running'
+        _finish_run(settings, run_id, "failed", None, run_log.error_message(exc))
+        raise
+    _finish_run(settings, run_id, "ok", last, None)
+    return result
 
 
 def run_daily_load(settings: Settings, now: datetime) -> date | None:

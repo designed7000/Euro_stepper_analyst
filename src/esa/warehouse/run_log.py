@@ -62,6 +62,11 @@ def finish(
     )
 
 
+def error_message(exc: BaseException) -> str:
+    """Message for the run log. A KeyboardInterrupt has no text, so use its name."""
+    return str(exc) or type(exc).__name__
+
+
 def last_good_game_date(con: duckdb.DuckDBPyConnection, season: str) -> date | None:
     """Latest game date of a successful load of the season."""
     # fetchall, not fetchone: DuckDB keeps a result open until all rows are read.

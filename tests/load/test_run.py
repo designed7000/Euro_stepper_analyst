@@ -1,4 +1,6 @@
 import io
+import subprocess
+import sys
 import tarfile
 from datetime import date, datetime, timedelta
 
@@ -103,6 +105,33 @@ def test_failure_on_second_call_writes_nothing_and_logs_failed(env):
     con = connect(env.settings)
     assert con.sql("select status, message from ops.run_log").fetchall() == [("failed", "timeout")]
     assert run_log.last_good_game_date(con, "2026-27") is None
+
+
+def test_interrupted_load_is_logged_as_failed(env):
+    # Ctrl-C or a stop of the launchd job must not leave a row at 'running'.
+    env.game_log_error = KeyboardInterrupt()
+    with pytest.raises(KeyboardInterrupt):
+        run_daily_load(env.settings, NOW)
+    con = connect(env.settings)
+    assert con.sql("select status, message from ops.run_log").fetchall() == [
+        ("failed", "KeyboardInterrupt")
+    ]
+
+
+def test_load_does_not_lock_the_warehouse_during_the_fetch(env, monkeypatch):
+    # DuckDB permits one writer process, so `esa build` must be able to open
+    # the warehouse while a long load waits for the NBA.
+    other_process = []
+
+    def fetch_shots(season, date_from, date_to, settings):
+        code = "import duckdb, sys; duckdb.connect(sys.argv[1]).close()"
+        args = [sys.executable, "-c", code, str(settings.duckdb_path)]
+        other_process.append(subprocess.run(args, capture_output=True, text=True, check=False))
+        return env.shots.copy()
+
+    monkeypatch.setattr("esa.load.run.fetch_shots", fetch_shots)
+    run_daily_load(env.settings, NOW)
+    assert other_process[0].returncode == 0, other_process[0].stderr
 
 
 def test_run_log_records_when_the_load_finished(env, monkeypatch):

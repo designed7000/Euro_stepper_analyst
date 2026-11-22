@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
-from esa.cli import app
+from esa.cli import _build, app
 from esa.load.nba import SchemaError
 from esa.load.retry import LoadError
 from esa.settings import Settings
@@ -74,6 +74,16 @@ def test_failed_build_is_recorded_and_exits_1(monkeypatch):
     con = connect(Settings())
     assert con.sql("select status, message from ops.run_log").fetchall() == [
         ("failed", "dbt broke")
+    ]
+
+
+def test_interrupted_build_is_recorded(monkeypatch):
+    monkeypatch.setattr("esa.cli.build_warehouse", _raise(KeyboardInterrupt()))
+    with pytest.raises(KeyboardInterrupt):
+        _build(Settings())
+    con = connect(Settings())
+    assert con.sql("select status, message from ops.run_log").fetchall() == [
+        ("failed", "KeyboardInterrupt")
     ]
 
 

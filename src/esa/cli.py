@@ -50,10 +50,10 @@ def _build(settings: Settings) -> None:
     finally:
         con.close()
 
-    error: Exception | None = None
+    error: BaseException | None = None
     try:
         build_warehouse(settings)
-    except Exception as exc:  # noqa: BLE001 - any failure is recorded, then raised again
+    except BaseException as exc:  # noqa: BLE001 - also Ctrl-C: recorded, then raised again
         error = exc
 
     con = connect(settings)
@@ -63,7 +63,7 @@ def _build(settings: Settings) -> None:
             run_id,
             status="failed" if error else "ok",
             last_game_date=None,
-            message=str(error) if error else None,
+            message=run_log.error_message(error) if error else None,
             now=utc_now(),
         )
     finally:
