@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 import pandas as pd
 
+from esa.clock import utc_now
 from esa.load.archive import download, fetch_index, read_shot_archive, shot_archive_name
 from esa.load.nba import (
     SHOT_COLUMNS,
@@ -46,10 +47,11 @@ def _logged_load[T](
             result, last = body(last_good)
         except Exception as exc:
             run_log.finish(
-                con, run_id, status="failed", last_game_date=None, message=str(exc), now=now
-            )
+                con, run_id, status="failed", last_game_date=None, message=str(exc),
+                now=utc_now(),
+            )  # fmt: skip
             raise
-        run_log.finish(con, run_id, status="ok", last_game_date=last, message=None, now=now)
+        run_log.finish(con, run_id, status="ok", last_game_date=last, message=None, now=utc_now())
         return result
     finally:
         con.close()

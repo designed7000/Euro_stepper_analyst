@@ -37,8 +37,8 @@ def _load(settings: Settings, now: datetime, backfill: bool) -> None:
         run_daily_load(settings, now)
 
 
-def _build(settings: Settings, now: datetime) -> None:
-    """Build the warehouse and record the run.
+def _build(settings: Settings) -> None:
+    """Build the warehouse and record the run, with its own start and finish time.
 
     The run log connection is closed during the build: dbt runs in its own
     process, and DuckDB permits only one process to write to a file.
@@ -46,7 +46,7 @@ def _build(settings: Settings, now: datetime) -> None:
     con = connect(settings)
     try:
         run_log.ensure(con)
-        run_id = run_log.start(con, "build", None, now)
+        run_id = run_log.start(con, "build", None, utc_now())
     finally:
         con.close()
 
@@ -93,7 +93,7 @@ def load(
 def build() -> None:
     """Build the warehouse tables from the raw files and run the data tests."""
     try:
-        _build(Settings(), utc_now())
+        _build(Settings())
     except Exception as exc:
         raise _fail(exc) from exc
 
@@ -104,7 +104,7 @@ def daily() -> None:
     settings, now = Settings(), utc_now()
     try:
         _load(settings, now, backfill=False)
-        _build(settings, now)
+        _build(settings)
     except Exception as exc:
         raise _fail(exc) from exc
 

@@ -47,6 +47,19 @@ def test_daily_runs_load_then_build(monkeypatch):
     assert CliRunner().invoke(app, ["daily"]).exit_code == 0 and order == ["load", "build"]
 
 
+def test_daily_build_row_has_its_own_start_and_finish_time(monkeypatch):
+    times = iter(datetime(2026, 11, 22, 10, minute) for minute in range(10))
+    monkeypatch.setattr("esa.cli.utc_now", lambda: next(times))
+    monkeypatch.setattr("esa.cli.run_daily_load", lambda s, now: None)
+    monkeypatch.setattr("esa.cli.build_warehouse", lambda s: None)
+    assert CliRunner().invoke(app, ["daily"]).exit_code == 0
+    con = connect(Settings())
+    # 10:00 is the start of the load, so the build starts at 10:01
+    assert con.sql("select started_at, finished_at from ops.run_log").fetchall() == [
+        (datetime(2026, 11, 22, 10, 1), datetime(2026, 11, 22, 10, 2))
+    ]
+
+
 def test_build_records_a_run_log_row(monkeypatch):
     monkeypatch.setattr("esa.cli.build_warehouse", lambda s: None)
     assert CliRunner().invoke(app, ["build"]).exit_code == 0

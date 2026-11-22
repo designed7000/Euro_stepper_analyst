@@ -105,6 +105,15 @@ def test_failure_on_second_call_writes_nothing_and_logs_failed(env):
     assert run_log.last_good_game_date(con, "2026-27") is None
 
 
+def test_run_log_records_when_the_load_finished(env, monkeypatch):
+    monkeypatch.setattr("esa.load.run.utc_now", lambda: NOW + timedelta(hours=2))
+    run_daily_load(env.settings, NOW)
+    con = connect(env.settings)
+    assert con.sql("select started_at, finished_at from ops.run_log").fetchall() == [
+        (NOW, NOW + timedelta(hours=2))
+    ]
+
+
 def test_backfill_uses_archive_when_listed_and_api_when_not(env):
     env.index = {"shotdetail_2025": "https://x/2025.tar.xz"}  # 2026 is not in the archive
     run_backfill(env.settings, NOW)
