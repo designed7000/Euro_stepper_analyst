@@ -140,3 +140,12 @@ def test_probe_succeeds_when_all_sources_answer(monkeypatch):
         monkeypatch.setattr(f"esa.cli.{name}", lambda *a: ok)
     result = CliRunner().invoke(app, ["probe"])
     assert result.exit_code == 0 and result.output.count("OK") == 4
+
+
+@pytest.mark.parametrize("command", ["load", "build", "daily", "probe"])
+def test_bad_setting_gives_a_clear_error(monkeypatch, command):
+    monkeypatch.setenv("ESA_LOOKBACK_DAYS", "abc")
+    result = CliRunner().invoke(app, [command])
+    assert result.exit_code == 1
+    assert result.output.startswith("error: ") and "lookback_days" in result.output
+    assert isinstance(result.exception, SystemExit)  # not a traceback

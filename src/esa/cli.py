@@ -101,9 +101,9 @@ def build() -> None:
 @app.command()
 def daily() -> None:
     """Do the daily run: load, then build. A failed step stops the run."""
-    settings, now = Settings(), utc_now()
     try:
-        _load(settings, now, backfill=False)
+        settings = Settings()
+        _load(settings, utc_now(), backfill=False)
         _build(settings)
     except Exception as exc:
         raise _fail(exc) from exc
@@ -112,7 +112,10 @@ def daily() -> None:
 @app.command()
 def probe() -> None:
     """Check that the archive index and the three NBA endpoints answer correctly."""
-    settings = Settings()
+    try:
+        settings = Settings()
+    except Exception as exc:
+        raise _fail(exc) from exc
     today = utc_now().date()
     season = season_label(season_start_year(today))
     window_start = today - timedelta(days=settings.lookback_days)
