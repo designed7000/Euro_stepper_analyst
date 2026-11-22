@@ -104,6 +104,11 @@ uv run esa daily             # each day: load new games, then build
 
 The data stays on your computer, in `lake/`. It is not in Git.
 
+Run `esa` from the clone, with `uv sync` and `uv run`. `esa` finds `lake/` and the
+dbt project in `warehouse/` from the location of its source files, so an install
+that copies the package somewhere else (`pip install .`, `uv tool install .`) does
+not work. `ESA_LAKE_DIR` can move the lake, but not the dbt project.
+
 ## 📖 Usage
 
 ### Getting Started
